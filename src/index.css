@@ -17,30 +17,30 @@
     --brand-blue: 220 74% 54%; /* #2A6BE1 equivalent */
     --brand-magenta: 298 81% 56%; /* #D93CE6 equivalent */
 
-    --card: 210 11% 11%; /* Surface color */
+    --card: 210 11% 11%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 210 8% 13%; /* Elevated color */
+    --popover: 210 8% 13%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 45 100% 60%; /* Brand gold */
-    --primary-foreground: 210 17% 7%; /* Dark background for contrast */
+    --primary: 45 100% 60%;
+    --primary-foreground: 210 17% 7%;
 
-    --secondary: 210 8% 13%; /* Elevated surface */
-    --secondary-foreground: 0 0% 79%; /* Light gray text */
+    --secondary: 210 8% 13%;
+    --secondary-foreground: 0 0% 79%;
 
-    --muted: 210 11% 11%; /* Surface color */
-    --muted-foreground: 0 0% 79%; /* #C9C9C9 equivalent */
+    --muted: 210 11% 11%;
+    --muted-foreground: 0 0% 79%;
 
-    --accent: 45 100% 60%; /* Brand gold accent */
+    --accent: 45 100% 60%;
     --accent-foreground: 210 17% 7%;
 
-    --destructive: 0 84% 60%; /* #EF4444 equivalent */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 8% 20%; /* Subtle border in dark theme */
-    --input: 210 8% 13%; /* Elevated surface for inputs */
-    --ring: 45 100% 60%; /* Gold ring for focus states */
+    --border: 210 8% 20%;
+    --input: 210 8% 13%;
+    --ring: 45 100% 60%;
 
     --radius: 0.5rem;
 
@@ -52,33 +52,31 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* ======== GLOBAL BACKGROUND CONTROLS ======== */
+    /* Tweak these two numbers if it's too dark/too light */
+    --site-bg-top-alpha: 0.45;    /* 0.00 (no overlay) → 1.00 (fully black) */
+    --site-bg-bottom-alpha: 0.85; /* stronger at the bottom for readability */
+    --site-bg-image-url: url('/sonyliv-bg.png'); /* image lives in /public */
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -103,22 +101,24 @@
   }
 }
 
-/* === Global background image (applies site-wide) === */
-:root {
-  --site-bg-overlay: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.85));
-  --site-bg-url: url('/sonyliv-bg.png'); /* file is in /public */
-}
+/* ======== SITE-WIDE BACKGROUND IMAGE ======== */
+/* We apply the overlay + image on the body itself so it always shows */
+html, body { min-height: 100%; }
 
-html, body {
-  min-height: 100%;
-}
-
-/* Put the image directly on the body so it isn't hidden by the body background */
 body {
-  background-image: var(--site-bg-overlay), var(--site-bg-url);
+  /* overlay first, then image */
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,0,0,var(--site-bg-top-alpha)),
+      rgba(0,0,0,var(--site-bg-bottom-alpha))
+    ),
+    var(--site-bg-image-url);
   background-position: center top;
   background-repeat: no-repeat;
   background-size: cover;
   background-attachment: fixed;
-  /* keep the color too (from Tailwind's bg-background) for repaint areas */
+
+  /* keep a fallback color behind the image */
+  background-color: hsl(var(--background));
 }
