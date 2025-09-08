@@ -4,13 +4,7 @@ import { OnboardingOverlay } from "@/components/onboarding/Overlay";
 import { useIsDesktop } from "@/lib/viewport";
 import { getStorageItem } from "@/lib/prefs";
 import { ContentRail } from "@/components/content/ContentRail";
-import type { ContentItem } from "@/components/content/ContentCard";
-import {
-  loadCatalog,
-  filterByLanguage,
-  trending,
-  getExpiringSoon,
-} from "@/lib/catalog";
+import { getLatestTelugu, getTrendingTelugu, type CatalogItem } from "@/lib/catalog";
 
 declare global {
   interface WindowEventMap {
@@ -20,19 +14,18 @@ declare global {
 
 const Index: React.FC = () => {
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [latestTelugu, setLatestTelugu] = useState<CatalogItem[]>([]);
+  const [trendingTelugu, setTrendingTelugu] = useState<CatalogItem[]>([]);
   const isDesktop = useIsDesktop();
 
-  const [teluguTrending, setTeluguTrending] = useState<ContentItem[]>([]);
-  const [teluguNew, setTeluguNew] = useState<ContentItem[]>([]);
-
-  // Open overlay when the header pill dispatches the event
+  // Open overlay when pill dispatches event
   useEffect(() => {
     const onOpen = () => setOverlayOpen(true);
     window.addEventListener("yliv:openOverlay", onOpen);
     return () => window.removeEventListener("yliv:openOverlay", onOpen);
   }, []);
 
-  // Auto-open overlay on first desktop visit if preferences are missing
+  // Auto-open overlay on first desktop visit if prefs missing
   useEffect(() => {
     if (!isDesktop) return;
     const prefs = getStorageItem("yliv.pref");
@@ -42,14 +35,15 @@ const Index: React.FC = () => {
     }
   }, [isDesktop]);
 
-  // Load catalog and compute Telugu-first rails
+  // Load rails
   useEffect(() => {
     (async () => {
-      const all = (await loadCatalog()) as any as ContentItem[];
-      const telugu = filterByLanguage(all, "Telugu") as any as ContentItem[];
-      setTeluguTrending(trending(telugu, "Telugu", 12) as any);
-      // Proxy for “recent”: sort by expiresAt ascending for mock data
-      setTeluguNew(getExpiringSoon(telugu, 365).slice(0, 12) as any);
+      const [latest, trending] = await Promise.all([
+        getLatestTelugu(10),
+        getTrendingTelugu(10),
+      ]);
+      setLatestTelugu(latest);
+      setTrendingTelugu(trending);
     })();
   }, []);
 
@@ -62,24 +56,28 @@ const Index: React.FC = () => {
     trigger?.focus();
   };
 
-  // bg-transparent: allow global site background to be visible
+  // IMPORTANT: transparent so body background shows
   return (
     <div className="relative min-h-screen bg-transparent">
       <Header />
+
+      {/* Onboarding Overlay */}
       <OnboardingOverlay open={overlayOpen} onClose={handleCloseOverlay} />
 
-      <main className="container mx-auto px-4 py-8 space-y-10">
-        <div className="text-center space-y-6">
+      {/* Main */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Hero */}
+        <div className="text-center space-y-6 mb-8">
           <h1 className="text-4xl font-bold text-foreground">
             Welcome to <span className="text-primary">SonyLIV</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Stream your favorite Telugu movies, shows, and originals. Discover
-            trending content and enjoy premium entertainment.
+            Stream your favorite Telugu movies, shows, and originals. Discover trending
+            content and enjoy premium entertainment.
           </p>
 
-        {/* Quick stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 max-w-4xl mx-auto">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-4xl mx-auto">
             <div className="bg-card rounded-lg p-6 border border-border">
               <h3 className="text-2xl font-bold text-primary">24+</h3>
               <p className="text-muted-foreground">Content Items</p>
@@ -95,9 +93,9 @@ const Index: React.FC = () => {
           </div>
         </div>
 
-        {/* Above-the-fold rails */}
-        <ContentRail title="Trending in Telugu" items={teluguTrending} />
-        <ContentRail title="New & Noteworthy (Telugu)" items={teluguNew} />
+        {/* ABOVE-THE-FOLD TELUGU RAILS */}
+        <ContentRail title="New in Telugu" items={latestTelugu} variant="poster" />
+        <ContentRail title="Trending in Telugu" items={trendingTelugu} variant="landscape" />
       </main>
     </div>
   );
