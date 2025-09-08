@@ -1,4 +1,3 @@
-// src/pages/Index.tsx
 import React, { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { OnboardingOverlay } from "@/components/onboarding/Overlay";
@@ -15,12 +14,14 @@ const Index: React.FC = () => {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const isDesktop = useIsDesktop();
 
+  // Listen for header pill event
   useEffect(() => {
     const onOpen = () => setOverlayOpen(true);
     window.addEventListener("yliv:openOverlay", onOpen);
     return () => window.removeEventListener("yliv:openOverlay", onOpen);
   }, []);
 
+  // Auto-open on first desktop visit when prefs missing
   useEffect(() => {
     if (!isDesktop) return;
     const prefs = getStorageItem("yliv.pref");
@@ -40,7 +41,7 @@ const Index: React.FC = () => {
   };
 
   return (
-    {/* keep wrapper transparent so global bg image is visible */}
+    /* Keep transparent so the body background image is visible */
     <div className="relative min-h-screen bg-transparent">
       <Header />
 
