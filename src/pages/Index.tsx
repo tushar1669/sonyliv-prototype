@@ -1,9 +1,35 @@
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
+import { OnboardingOverlay } from "@/components/onboarding/Overlay";
+import { useIsDesktop } from "@/lib/viewport";
+import { getStorageItem } from "@/lib/prefs";
 
 const Index = () => {
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const isDesktop = useIsDesktop();
+
+  useEffect(() => {
+    // Auto-open overlay on first visit for desktop users
+    if (isDesktop) {
+      const prefs = getStorageItem('yliv.pref');
+      if (!prefs) {
+        setOverlayOpen(true);
+      }
+    }
+  }, [isDesktop]);
+
+  const handleCloseOverlay = () => {
+    setOverlayOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      <OnboardingOverlay 
+        open={overlayOpen}
+        onClose={handleCloseOverlay}
+      />
       
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">

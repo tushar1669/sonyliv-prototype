@@ -1,5 +1,6 @@
 import { Search, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CompleteSetupPill } from "@/components/header/CompleteSetupPill";
 
 export function Header() {
   return (
@@ -36,6 +37,8 @@ export function Header() {
 
         {/* Actions */}
         <div className="flex items-center space-x-2">
+          <CompleteSetupPill />
+          
           <Button variant="ghost" size="icon">
             <Search className="h-4 w-4" />
             <span className="sr-only">Search</span>

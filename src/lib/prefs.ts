@@ -93,3 +93,37 @@ export function clearPrefs(): boolean {
     return false;
   }
 }
+
+/**
+ * Generic localStorage getter with SSR safety
+ */
+export function getStorageItem(key: string): any {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (error) {
+    console.warn('Failed to get storage item:', error);
+    return null;
+  }
+}
+
+/**
+ * Generic localStorage setter with SSR safety
+ */
+export function setStorageItem(key: string, value: any): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.warn('Failed to set storage item:', error);
+    return false;
+  }
+}
