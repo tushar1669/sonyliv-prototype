@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { CompleteSetupPill } from "@/components/header/CompleteSetupPill";
 import { getWatchlist } from "@/lib/watchlist";
 
-export function Header() {
+export function Header({ children }: { children?: React.ReactNode }) {
   const [watchlistCount, setWatchlistCount] = useState(0);
 
   useEffect(() => {
@@ -60,6 +60,7 @@ export function Header() {
         {/* Actions */}
         <div className="flex items-center space-x-2">
           <CompleteSetupPill />
+          {children}
           
           <Button variant="ghost" size="icon" onClick={handleWatchlistClick} className="relative">
             <Bookmark className="h-4 w-4" />

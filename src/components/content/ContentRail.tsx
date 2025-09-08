@@ -67,6 +67,10 @@ export const ContentRail: React.FC<ContentRailProps> = ({
           itemCount: items.length,
           itemIds: items.map(item => item.id) 
         });
+      } else if (title === "Telugu Tour Picks") {
+        console.log('challenge_rail_rendered', { 
+          itemIds: items.map(item => item.id) 
+        });
       }
     }
   }, [loading, items, title]);

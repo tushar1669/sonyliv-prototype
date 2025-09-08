@@ -7,19 +7,23 @@ import { MockPlayer } from "@/components/player/MockPlayer";
 import { DeepDiveSheet } from "@/components/content/DeepDiveSheet";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle, Trophy } from "lucide-react";
 import { loadCatalog, getLatestByLanguage, getTrendingByLanguage, getExpiringSoonByLanguage, byGenreAndLanguage, daysUntilExpiry } from "@/lib/catalog";
 import type { CatalogItem } from "@/lib/catalog";
 import { useIsDesktop } from "@/lib/viewport";
 import { readYPref, type YPref } from "@/lib/prefs";
 import { getWatchlist } from "@/lib/watchlist";
 import { getContinueWatchingIds } from "@/lib/progress";
+import { ensureChallengeStarted, onContentFinished, onWatchlistChanged, type ChallengeState } from "@/lib/challenge";
+import { ChallengeBadge } from "@/components/challenge/ChallengeBadge";
+import { ChallengeDrawer } from "@/components/challenge/ChallengeDrawer";
 
 declare global {
   interface WindowEventMap {
     "yliv:openOverlay": CustomEvent<void>;
     "yliv:content:finished": CustomEvent<CatalogItem>;
     "yliv:deep-dive:play": CustomEvent<{ item: CatalogItem; source: string }>;
+    "yliv:continue:resume": CustomEvent<{ id: string }>;
   }
 }
 
@@ -37,6 +41,9 @@ export default function Index() {
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const [deepDiveItem, setDeepDiveItem] = useState<CatalogItem | null>(null);
   const [continueItems, setContinueItems] = useState<CatalogItem[]>([]);
+  const [challenge, setChallenge] = useState<ChallengeState | null>(null);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [challengeBannerDismissed, setChallengeBannerDismissed] = useState(false);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -46,6 +53,7 @@ export default function Index() {
       setCatalogLoading(false);
     });
     setUserPrefs(readYPref());
+    setChallenge(ensureChallengeStarted());
   }, []);
 
   // Event listeners for overlay, preference updates, and watchlist changes
@@ -55,8 +63,16 @@ export default function Index() {
       console.log('yliv_pref_changed', event.detail);
       setUserPrefs(event.detail);
     };
-    const handleWatchlistChanged = () => {
+    const handleWatchlistChanged = (event: CustomEvent) => {
       updateWatchlistItems();
+      if (challenge) {
+        const newChallenge = onWatchlistChanged(challenge, event.detail);
+        setChallenge(newChallenge);
+        if (newChallenge.completedAt && !challenge.completedAt) {
+          console.log('challenge_completed');
+          alert('Congratulations! You completed the Telugu Tour! Bonus week unlocked!');
+        }
+      }
     };
     const handleProgressChanged = () => {
       updateContinueItems();
@@ -65,6 +81,15 @@ export default function Index() {
       setDeepDiveItem(event.detail);
       setDeepDiveOpen(true);
       updateContinueItems(); // Remove completed item from continue watching
+      
+      if (challenge) {
+        const newChallenge = onContentFinished(challenge, event.detail, userPrefs);
+        setChallenge(newChallenge);
+        if (newChallenge.completedAt && !challenge.completedAt) {
+          console.log('challenge_completed');
+          alert('Congratulations! You completed the Telugu Tour! Bonus week unlocked!');
+        }
+      }
     };
     const handleDeepDivePlay = (event: CustomEvent<{ item: CatalogItem; source: string }>) => {
       setPlayerItem(event.detail.item);
@@ -130,6 +155,7 @@ export default function Index() {
 
   const handleContinueItemClick = (item: CatalogItem) => {
     console.log('continue_resume_clicked', { id: item.id, title: item.title });
+    window.dispatchEvent(new CustomEvent('yliv:continue:resume', { detail: { id: item.id } }));
     setPlayerItem(item);
     setPlayerOpen(true);
   };
@@ -158,6 +184,27 @@ export default function Index() {
     title: `Because you like ${genre.charAt(0).toUpperCase() + genre.slice(1)}`,
     items: byGenreAndLanguage(catalog, genre, language, 12)
   }));
+
+  // Challenge picks rail - help complete remaining tasks
+  const challengePicks = React.useMemo(() => {
+    if (!challenge || challenge.completedAt) return [];
+    
+    let picks = getTrendingByLanguage(catalog, language, 12);
+    
+    // Prefer items that match user's preferred genres if pref_genre_1 task not done
+    const prefGenreTask = challenge.tasks.find(t => t.id === 'pref_genre_1');
+    if (prefGenreTask && !prefGenreTask.done && userPrefs?.genres) {
+      const genreItems = catalog.filter(item => 
+        item.language === language &&
+        item.genres.some(g => userPrefs.genres.map(ug => ug.toLowerCase()).includes(g.toLowerCase()))
+      );
+      if (genreItems.length > 0) {
+        picks = [...genreItems.slice(0, 6), ...picks.slice(0, 6)];
+      }
+    }
+    
+    return picks.slice(0, 12);
+  }, [catalog, challenge, language, userPrefs]);
   
   // Check for expiring watchlist items (≤3 days)
   const expiringWatchlistItems = watchlistItems.filter(item => {
@@ -166,6 +213,8 @@ export default function Index() {
   });
   
   const shouldShowBanner = !bannerDismissed && expiringWatchlistItems.length > 0;
+  const shouldShowChallengeBanner = challenge && !challengeBannerDismissed && 
+    challenge.completedAt === null && challenge.tasks.some(t => t.progress < t.target);
 
   const handleBannerDismiss = () => {
     setBannerDismissed(true);
@@ -179,10 +228,24 @@ export default function Index() {
     setBannerDismissed(true);
   };
 
+  const handleChallengeBannerDismiss = () => {
+    setChallengeBannerDismissed(true);
+  };
+
+  const handleViewChallengeTasks = () => {
+    setChallengeOpen(true);
+    setChallengeBannerDismissed(true);
+  };
+
   // IMPORTANT: bg-transparent so the global body background shows through
   return (
     <div className="relative min-h-screen bg-transparent">
-      <Header />
+      <Header>
+        <ChallengeBadge 
+          state={challenge} 
+          onClick={() => setChallengeOpen(true)} 
+        />
+      </Header>
 
       {/* Onboarding Overlay (page-owned) */}
       <OnboardingOverlay open={overlayOpen} onClose={handleOverlayClose} />
@@ -210,8 +273,50 @@ export default function Index() {
         catalog={catalog} 
       />
 
+      {/* Challenge Drawer */}
+      <ChallengeDrawer 
+        open={challengeOpen} 
+        onClose={() => setChallengeOpen(false)} 
+        state={challenge}
+        onStateChange={setChallenge}
+      />
+
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">
+        {/* Challenge Banner */}
+        {shouldShowChallengeBanner && (
+          <Alert className="mb-6 border-primary/50 bg-primary/10">
+            <Trophy className="h-4 w-4 text-primary" />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex-1">
+                <AlertTitle className="text-primary">Welcome!</AlertTitle>
+                <AlertDescription className="text-primary/80">
+                  Join the <strong>7-Day Telugu Tour</strong> and unlock a bonus week.
+                </AlertDescription>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleViewChallengeTasks}
+                  className="border-primary/50 text-primary hover:bg-primary/10"
+                >
+                  View Tasks
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleChallengeBannerDismiss}
+                  className="h-8 w-8 text-primary/60 hover:text-primary"
+                  aria-label="Dismiss banner"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        )}
+
         {/* Expiring Watchlist Banner */}
         {shouldShowBanner && (
           <Alert className="mb-6 border-destructive/50 bg-destructive/10">
@@ -304,6 +409,19 @@ export default function Index() {
               <ContentRail
                 title="Leaving Soon"
                 items={leavingSoonContent}
+                variant="poster"
+                loading={catalogLoading}
+                onItemClick={handleItemClick}
+              />
+            </div>
+          )}
+          
+          {/* Challenge Picks Rail */}
+          {challengePicks.length > 0 && challenge && !challenge.completedAt && (
+            <div id="yliv-challenge-picks">
+              <ContentRail
+                title="Telugu Tour Picks"
+                items={challengePicks}
                 variant="poster"
                 loading={catalogLoading}
                 onItemClick={handleItemClick}
