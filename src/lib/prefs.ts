@@ -13,6 +13,12 @@ interface Preferences {
   profileId?: string;
 }
 
+// SonyLIV specific preference type
+export type YPref = { 
+  language: 'Telugu' | 'Hindi' | 'English'; 
+  genres: string[];
+};
+
 /** Get a preference value with SSR safety */
 export function getPref<K extends keyof Preferences>(
   key: K,
@@ -106,4 +112,17 @@ export function hasStorageKey(key: string): boolean {
   } catch {
     return false;
   }
+}
+
+// SonyLIV specific typed preference helpers
+export function readYPref(): YPref | null {
+  const data = getStorageItem<YPref>('yliv.pref');
+  if (!data || !data.language || !Array.isArray(data.genres)) {
+    return null;
+  }
+  return data;
+}
+
+export function writeYPref(p: YPref): boolean {
+  return setStorageItem('yliv.pref', p);
 }

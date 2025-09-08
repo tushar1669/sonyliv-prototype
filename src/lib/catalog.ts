@@ -148,13 +148,28 @@ export function getExpiringSoon(items: CatalogItem[], days = 7): CatalogItem[] {
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
 }
 
-/** Helpers for homepage rails */
-export function getLatestTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
-  return [...filterByLanguage(items, "Telugu")]
-    .sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime())
+/** Get latest items by language sorted by recent expiration date */
+export function getLatestByLanguage(items: CatalogItem[], language: string, limit = 12): CatalogItem[] {
+  return filterByLanguage(items, language)
+    .sort((a, b) => {
+      const dateA = new Date(a.expiresAt).getTime();
+      const dateB = new Date(b.expiresAt).getTime();
+      if (dateA !== dateB) return dateB - dateA; // newest expiration first
+      return a.title.localeCompare(b.title); // then by title
+    })
     .slice(0, limit);
 }
 
+/** Get trending items by language */
+export function getTrendingByLanguage(items: CatalogItem[], language: string, limit = 12): CatalogItem[] {
+  return trending(items, language, limit);
+}
+
+/** Helpers for homepage rails */
+export function getLatestTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
+  return getLatestByLanguage(items, 'Telugu', limit);
+}
+
 export function getTrendingTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
-  return trending(items, "Telugu", limit);
+  return getTrendingByLanguage(items, 'Telugu', limit);
 }

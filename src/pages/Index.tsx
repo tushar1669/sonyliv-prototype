@@ -1,17 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { OnboardingOverlay } from "@/components/onboarding/Overlay";
-import { useIsDesktop } from "@/lib/viewport";
-import { getStorageItem } from "@/lib/prefs";
-
-// rails + data helpers
 import { ContentRail } from "@/components/content/ContentRail";
-import {
-  loadCatalog,
-  getLatestTelugu,
-  getTrendingTelugu,
-  CatalogItem,
-} from "@/lib/catalog";
+import { loadCatalog, getLatestByLanguage, getTrendingByLanguage } from "@/lib/catalog";
+import type { CatalogItem } from "@/lib/catalog";
+import { useIsDesktop } from "@/lib/viewport";
+import { readYPref, type YPref } from "@/lib/prefs";
 
 declare global {
   interface WindowEventMap {
@@ -19,44 +13,49 @@ declare global {
   }
 }
 
-const Index: React.FC = () => {
+export default function Index() {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [userPrefs, setUserPrefs] = useState<YPref | null>(null);
   const isDesktop = useIsDesktop();
-
-  // Listen for pill event
+  
+  // Load catalog data and user preferences
   useEffect(() => {
-    const onOpen = () => setOverlayOpen(true);
-    window.addEventListener("yliv:openOverlay", onOpen);
-    return () => window.removeEventListener("yliv:openOverlay", onOpen);
+    loadCatalog().then(setCatalog);
+    setUserPrefs(readYPref());
   }, []);
 
-  // Auto-open overlay on first desktop visit if preferences missing
+  // Event listeners for overlay and preference updates
   useEffect(() => {
-    if (!isDesktop) return;
-    const prefs = getStorageItem("yliv.pref");
-    if (!prefs) {
-      console.log("onboarding_overlay_opened (auto)");
+    const handleOpenOverlay = () => setOverlayOpen(true);
+    const handlePrefsUpdated = (event: CustomEvent<YPref>) => {
+      setUserPrefs(event.detail);
+    };
+    
+    window.addEventListener('yliv:openOverlay', handleOpenOverlay);
+    window.addEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('yliv:openOverlay', handleOpenOverlay);
+      window.removeEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
+    };
+  }, []);
+
+  // Auto-open overlay on first desktop visit
+  useEffect(() => {
+    if (isDesktop && catalog.length > 0 && !userPrefs) {
       setOverlayOpen(true);
     }
-  }, [isDesktop]);
+  }, [isDesktop, catalog, userPrefs]);
 
-  // Load catalog (served from /public/mocks/mockCatalog.json)
-  useEffect(() => {
-    (async () => {
-      const items = await loadCatalog();
-      setCatalog(items);
-    })();
-  }, []);
-
-  const handleCloseOverlay = () => {
+  const handleOverlayClose = () => {
     setOverlayOpen(false);
-    console.log("onboarding_overlay_closed");
-    const trigger = document.getElementById(
-      "yliv-complete-setup-pill"
-    ) as HTMLButtonElement | null;
-    trigger?.focus();
   };
+
+  // Get content for rails based on user language preference
+  const language = userPrefs?.language || 'Telugu';
+  const latestContent = getLatestByLanguage(catalog, language, 10);
+  const trendingContent = getTrendingByLanguage(catalog, language, 10);
 
   // IMPORTANT: bg-transparent so the global body background shows through
   return (
@@ -64,7 +63,7 @@ const Index: React.FC = () => {
       <Header />
 
       {/* Onboarding Overlay (page-owned) */}
-      <OnboardingOverlay open={overlayOpen} onClose={handleCloseOverlay} />
+      <OnboardingOverlay open={overlayOpen} onClose={handleOverlayClose} />
 
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">
@@ -95,22 +94,22 @@ const Index: React.FC = () => {
           </div>
         </div>
 
-        {/* Rails */}
+        {/* Content Rails */}
         {catalog.length > 0 && (
-          <section className="mt-12 space-y-12">
+          <div className="mt-12 space-y-8">
             <ContentRail
-              title="New in Telugu"
-              items={getLatestTelugu(catalog, 12)}
+              title={`New in ${language}`}
+              items={latestContent}
+              variant="poster"
             />
             <ContentRail
-              title="Trending in Telugu"
-              items={getTrendingTelugu(catalog, 12)}
+              title={`Trending in ${language}`}  
+              items={trendingContent}
+              variant="poster"
             />
-          </section>
+          </div>
         )}
       </main>
     </div>
   );
-};
-
-export default Index;
+}

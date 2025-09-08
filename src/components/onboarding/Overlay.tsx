@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,13 +7,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
-import { getStorageItem, setStorageItem } from "@/lib/prefs";
-
-const TELUGU_GENRES = [
-  "Action", "Drama", "Comedy", "Romance", "Thriller",
-  "Family", "Biography", "Crime", "Sports", "Music",
-];
+import { Badge } from "@/components/ui/badge";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { writeYPref, type YPref } from "@/lib/prefs";
 
 interface OnboardingOverlayProps {
   open: boolean;
@@ -21,198 +17,211 @@ interface OnboardingOverlayProps {
 }
 
 export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [language, setLanguage] = useState<"Telugu" | "Hindi" | "English">(
-    "Telugu"
-  );
+  const [step, setStep] = useState(1);
+  const [language, setLanguage] = useState<'Telugu' | 'Hindi' | 'English'>('Telugu');
   const [genres, setGenres] = useState<string[]>([]);
 
-  // Body scroll lock + log stubs
+  // Lock body scroll when overlay is open
   useEffect(() => {
     if (open) {
-      console.log("onboarding_overlay_opened");
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     }
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     };
   }, [open]);
 
+  // Reset state on open
   useEffect(() => {
-    // If user has prefs, hydrate quick summary (optional)
-    const saved = getStorageItem("yliv.pref");
-    if (saved?.language) setLanguage(saved.language);
-    if (Array.isArray(saved?.genres)) setGenres(saved.genres);
-  }, []);
+    if (open) {
+      setStep(1);
+      setLanguage('Telugu');
+      setGenres([]);
+    }
+  }, [open]);
 
-  const toggleGenre = (g: string) =>
-    setGenres((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  const toggleGenre = (genre: string) => {
+    setGenres(prev => 
+      prev.includes(genre) 
+        ? prev.filter(g => g !== genre)
+        : [...prev, genre]
+    );
+  };
 
-  const next = () => setStep((s) => (Math.min(3, s + 1) as 1 | 2 | 3));
-  const back = () => setStep((s) => (Math.max(1, s - 1) as 1 | 2 | 3));
-
-  const previewCount = useMemo(() => Math.max(6, genres.length * 2), [genres]);
+  const next = () => setStep(prev => Math.min(3, prev + 1));
+  const back = () => setStep(prev => Math.max(1, prev - 1));
 
   const finish = () => {
-    setStorageItem("yliv.pref", {
-      language,
-      genres,
-      completedAt: Date.now(),
-    });
-    window.dispatchEvent(new CustomEvent("yliv:prefsSaved"));
+    const prefs: YPref = { language, genres };
+    
+    // Save to localStorage
+    writeYPref(prefs);
+    
+    // Dispatch events
+    window.dispatchEvent(new CustomEvent('yliv:preferences:updated', { 
+      detail: prefs 
+    }));
+    window.dispatchEvent(new Event('yliv:onboarding:completed'));
+    
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-2xl w-full mx-4" aria-describedby="onboarding-desc">
-        <DialogHeader className="mb-2">
-          <div className="flex items-center justify-between">
-            <DialogTitle id="onboarding-title" className="text-xl">
-              Complete your setup
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              aria-label="Close setup dialog"
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <DialogDescription id="onboarding-desc">
-            Make your homepage Telugu-first with quick preferences.
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="onboarding-description">
+        <DialogHeader className="relative">
+          <button
+            onClick={onClose}
+            className="absolute right-0 top-0 p-2 hover:bg-secondary rounded-md transition-colors"
+            aria-label="Close dialog"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <DialogTitle className="text-xl font-semibold pr-10">
+            Complete your setup
+          </DialogTitle>
+          <DialogDescription id="onboarding-description" className="text-muted-foreground">
+            Help us personalize your SonyLIV experience by selecting your preferences
           </DialogDescription>
         </DialogHeader>
 
-        {/* Stepper */}
-        <div className="flex items-center gap-3 mb-5 text-sm">
-          {[
-            { n: 1, label: "Choose Language" },
-            { n: 2, label: "Pick Genres" },
-            { n: 3, label: "Review & Confirm" },
-          ].map(({ n, label }) => (
-            <div key={n} className="flex items-center gap-2">
-              <span
-                className={[
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold",
-                  n <= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-                ].join(" ")}
-              >
-                {n}
-              </span>
-              <span className={n === step ? "text-foreground" : "text-muted-foreground"}>
-                {label}
-              </span>
-              {n < 3 && <div className="w-6 h-px bg-border mx-1" />}
-            </div>
-          ))}
-        </div>
-
-        {/* Step 1: Language */}
-        {step === 1 && (
-          <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">
-              Your default audio language. You can change this later.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {(["Telugu", "Hindi", "English"] as const).map((lng) => (
-                <button
-                  key={lng}
-                  type="button"
-                  onClick={() => setLanguage(lng)}
-                  className={[
-                    "px-4 py-2 rounded-full border",
-                    language === lng
-                      ? "border-primary text-primary bg-primary/10"
-                      : "border-border text-foreground/80 hover:bg-muted",
-                  ].join(" ")}
-                  aria-pressed={language === lng}
+        <div className="space-y-6">
+          {/* Step indicator */}
+          <div className="flex items-center justify-center space-x-4">
+            {[1, 2, 3].map((stepNum) => (
+              <div key={stepNum} className="flex items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    stepNum === step
+                      ? 'bg-primary text-primary-foreground'
+                      : stepNum < step
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground'
+                  }`}
                 >
-                  {lng}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex justify-between pt-2">
-              <span />
-              <Button onClick={next} className="min-w-[120px]">Next</Button>
-            </div>
+                  {stepNum}
+                </div>
+                {stepNum < 3 && (
+                  <div className="w-12 h-0.5 bg-border mx-2" />
+                )}
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Step 2: Genres */}
-        {step === 2 && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Pick a few Telugu genres you like (3+ recommended).
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {TELUGU_GENRES.map((g) => {
-                const active = genres.includes(g);
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => toggleGenre(g)}
-                    className={[
-                      "px-3 py-2 rounded-md border text-left",
-                      active
-                        ? "border-primary text-primary bg-primary/10"
-                        : "border-border text-foreground/80 hover:bg-muted",
-                    ].join(" ")}
-                    aria-pressed={active}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Step Content */}
+          <div className="min-h-[300px]">
+            {step === 1 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Choose your preferred audio language</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {(['Telugu', 'Hindi', 'English'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`p-4 text-left rounded-lg border transition-colors ${
+                        language === lang
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <div className="font-medium">{lang}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {lang === 'Telugu' && 'తెలుగు - Regional entertainment'}
+                        {lang === 'Hindi' && 'हिंदी - Bollywood & more'}
+                        {lang === 'English' && 'English - International content'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="flex justify-between pt-2">
-              <Button variant="outline" onClick={back} className="min-w-[120px]">
-                Back
-              </Button>
-              <Button onClick={next} className="min-w-[120px]">
-                Continue
-              </Button>
-            </div>
+            {step === 2 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Pick your favorite genres</h3>
+                <p className="text-sm text-muted-foreground">
+                  Select at least 3 genres to continue
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    'action', 'comedy', 'drama', 'romance', 'thriller',
+                    'horror', 'sci-fi', 'family', 'biography', 'sports',
+                    'documentary', 'musical'
+                  ].map((genre) => (
+                    <button
+                      key={genre}
+                      onClick={() => toggleGenre(genre)}
+                      className={`p-3 text-center rounded-lg border transition-colors ${
+                        genres.includes(genre)
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:bg-secondary'
+                      }`}
+                    >
+                      <div className="font-medium capitalize">{genre}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Review & Confirm</h3>
+                <div className="space-y-4 p-4 bg-secondary/50 rounded-lg">
+                  <div>
+                    <div className="font-medium">Audio Language</div>
+                    <div className="text-muted-foreground">{language}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Selected Genres</div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {genres.map((genre) => (
+                        <Badge key={genre} variant="secondary">
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  We'll use these preferences to personalize your content recommendations.
+                  You can always change them later in your settings.
+                </p>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Step 3: Review */}
-        {step === 3 && (
-          <div className="space-y-5">
-            <div className="rounded-md border border-border p-4 bg-card">
-              <h4 className="font-semibold mb-2">Your preferences</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>
-                  <span className="text-foreground">Language:</span> {language}
-                </li>
-                <li>
-                  <span className="text-foreground">Genres:</span>{" "}
-                  {genres.length ? genres.join(", ") : "—"}
-                </li>
-              </ul>
-            </div>
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={back}
+              disabled={step === 1}
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
 
-            <p className="text-sm text-muted-foreground">
-              We’ll tune the homepage and show you ~{previewCount} Telugu titles first.
-            </p>
-
-            <div className="flex justify-between pt-2">
-              <Button variant="outline" onClick={back} className="min-w-[120px]">
-                Back
+            {step < 3 ? (
+              <Button 
+                onClick={next} 
+                disabled={step === 2 && genres.length < 3}
+                className="flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button onClick={finish} className="min-w-[140px]">
+            ) : (
+              <Button onClick={finish} className="flex items-center gap-2">
                 Save & Continue
+                <ChevronRight className="h-4 w-4" />
               </Button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
-import { getStorageItem } from "@/lib/prefs";
+import { readYPref } from "@/lib/prefs";
 
 /**
  * Small header pill that opens the onboarding overlay.
@@ -13,20 +13,20 @@ export function CompleteSetupPill() {
 
   useEffect(() => {
     // Show pill only when onboarding pref is not set
-    const hasPref = !!getStorageItem("yliv.pref");
+    const hasPref = !!readYPref();
     setVisible(!hasPref);
 
-    // If some other flow saves prefs, hide the pill
-    const onPrefsSaved = () => setVisible(false);
-    window.addEventListener("yliv:prefsSaved", onPrefsSaved);
-    return () => window.removeEventListener("yliv:prefsSaved", onPrefsSaved);
+    // Hide pill when onboarding is completed
+    const onCompleted = () => setVisible(false);
+    window.addEventListener("yliv:onboarding:completed", onCompleted);
+    return () => window.removeEventListener("yliv:onboarding:completed", onCompleted);
   }, []);
 
   if (!visible) return null;
 
   const openOverlay = () => {
     // Let the page (Index) handle opening the overlay
-    window.dispatchEvent(new CustomEvent("yliv:openOverlay"));
+    window.dispatchEvent(new Event("yliv:openOverlay"));
   };
 
   return (
