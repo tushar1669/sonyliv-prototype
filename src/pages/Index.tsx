@@ -7,6 +7,7 @@ import { loadCatalog, getLatestByLanguage, getTrendingByLanguage } from "@/lib/c
 import type { CatalogItem } from "@/lib/catalog";
 import { useIsDesktop } from "@/lib/viewport";
 import { readYPref, type YPref } from "@/lib/prefs";
+import { getWatchlist } from "@/lib/watchlist";
 
 declare global {
   interface WindowEventMap {
@@ -21,6 +22,7 @@ export default function Index() {
   const [userPrefs, setUserPrefs] = useState<YPref | null>(null);
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [watchlistItems, setWatchlistItems] = useState<CatalogItem[]>([]);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -32,22 +34,38 @@ export default function Index() {
     setUserPrefs(readYPref());
   }, []);
 
-  // Event listeners for overlay and preference updates
+  // Event listeners for overlay, preference updates, and watchlist changes
   useEffect(() => {
     const handleOpenOverlay = () => setOverlayOpen(true);
     const handlePrefsUpdated = (event: CustomEvent<YPref>) => {
       console.log('yliv_pref_changed', event.detail);
       setUserPrefs(event.detail);
     };
+    const handleWatchlistChanged = () => {
+      updateWatchlistItems();
+    };
+    
+    const updateWatchlistItems = () => {
+      if (catalog.length > 0) {
+        const watchlistIds = getWatchlist();
+        const items = catalog.filter(item => watchlistIds.includes(item.id));
+        setWatchlistItems(items);
+      }
+    };
+    
+    // Initial watchlist update
+    updateWatchlistItems();
     
     window.addEventListener('yliv:openOverlay', handleOpenOverlay);
     window.addEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
+    window.addEventListener('yliv:watchlist:changed', handleWatchlistChanged);
     
     return () => {
       window.removeEventListener('yliv:openOverlay', handleOpenOverlay);
       window.removeEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
+      window.removeEventListener('yliv:watchlist:changed', handleWatchlistChanged);
     };
-  }, []);
+  }, [catalog]);
 
   // Auto-open overlay on first desktop visit
   useEffect(() => {
@@ -121,6 +139,19 @@ export default function Index() {
 
         {/* Content Rails */}
         <div className="mt-12 space-y-8">
+          {/* Watchlist Rail */}
+          {watchlistItems.length > 0 && (
+            <div id="yliv-watchlist">
+              <ContentRail
+                title="Your Watchlist"
+                items={watchlistItems}
+                variant="poster"
+                loading={false}
+                onItemClick={handleItemClick}
+              />
+            </div>
+          )}
+          
           <ContentRail
             title={`New in ${language}`}
             items={latestContent}

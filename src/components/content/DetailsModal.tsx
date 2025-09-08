@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Play, Plus, Download, Calendar } from "lucide-react";
+import { X, Play, Plus, Download, Calendar, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/catalog";
 import { daysUntilExpiry } from "@/lib/catalog";
+import { isInWatchlist, addToWatchlist, removeFromWatchlist } from "@/lib/watchlist";
 
 interface DetailsModalProps {
   open: boolean;
@@ -19,6 +20,26 @@ interface DetailsModalProps {
 }
 
 export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
+  const [inWatchlist, setInWatchlist] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setInWatchlist(isInWatchlist(item.id));
+    }
+  }, [item]);
+
+  // Listen for watchlist changes to update button state
+  useEffect(() => {
+    const handleWatchlistChange = () => {
+      if (item) {
+        setInWatchlist(isInWatchlist(item.id));
+      }
+    };
+    
+    window.addEventListener('yliv:watchlist:changed', handleWatchlistChange);
+    return () => window.removeEventListener('yliv:watchlist:changed', handleWatchlistChange);
+  }, [item]);
+
   if (!item) return null;
 
   const handlePlayClick = () => {
@@ -26,7 +47,13 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
   };
 
   const handleWatchlistClick = () => {
-    console.log('detail_watchlist_clicked', { itemId: item.id, title: item.title });
+    if (inWatchlist) {
+      removeFromWatchlist(item.id);
+      console.log('watchlist_removed', { itemId: item.id, title: item.title });
+    } else {
+      addToWatchlist(item.id);
+      console.log('watchlist_added', { itemId: item.id, title: item.title });
+    }
   };
 
   const handleDownloadClick = () => {
@@ -131,13 +158,13 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
               Play
             </Button>
             <Button 
-              variant="outline" 
+              variant={inWatchlist ? "default" : "outline"}
               onClick={handleWatchlistClick}
               className="flex items-center gap-2"
-              aria-label={`Add ${item.title} to watchlist`}
+              aria-label={inWatchlist ? `Remove ${item.title} from watchlist` : `Add ${item.title} to watchlist`}
             >
-              <Plus className="h-4 w-4" />
-              Add to Watchlist
+              {inWatchlist ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {inWatchlist ? "In Watchlist" : "Add to Watchlist"}
             </Button>
             <Button 
               variant="outline" 

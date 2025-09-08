@@ -43,6 +43,14 @@ export const ContentRail: React.FC<ContentRailProps> = ({
         railName: title, 
         itemIds: items.map(item => item.id) 
       });
+      
+      // Special analytics for watchlist rail
+      if (title === "Your Watchlist") {
+        console.log('watchlist_rail_rendered', { 
+          itemCount: items.length,
+          itemIds: items.map(item => item.id) 
+        });
+      }
     }
   }, [loading, items, title]);
 
