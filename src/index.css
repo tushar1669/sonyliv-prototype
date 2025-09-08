@@ -2,39 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* SonyLIV-inspired Design System - Dark theme with gold accents */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark theme colors inspired by SonyLIV */
+    --background: 210 17% 7%; /* #121212 equivalent */
+    --foreground: 0 0% 100%; /* White text */
+    --surface: 210 11% 11%; /* #1C1C1C equivalent */
+    --elevated: 210 8% 13%; /* #222222 equivalent */
+    
+    /* Brand colors from SonyLIV palette */
+    --brand-gold: 45 100% 60%; /* #FFC533 equivalent */
+    --brand-blue: 220 74% 54%; /* #2A6BE1 equivalent */
+    --brand-magenta: 298 81% 56%; /* #D93CE6 equivalent */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 210 11% 11%; /* Surface color */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 210 8% 13%; /* Elevated color */
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 45 100% 60%; /* Brand gold */
+    --primary-foreground: 210 17% 7%; /* Dark background for contrast */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 8% 13%; /* Elevated surface */
+    --secondary-foreground: 0 0% 79%; /* Light gray text */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 11% 11%; /* Surface color */
+    --muted-foreground: 0 0% 79%; /* #C9C9C9 equivalent */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 45 100% 60%; /* Brand gold accent */
+    --accent-foreground: 210 17% 7%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%; /* #EF4444 equivalent */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 210 8% 20%; /* Subtle border in dark theme */
+    --input: 210 8% 13%; /* Elevated surface for inputs */
+    --ring: 45 100% 60%; /* Gold ring for focus states */
 
     --radius: 0.5rem;
 

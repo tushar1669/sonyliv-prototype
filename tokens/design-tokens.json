@@ -1,0 +1,11 @@
+{
+  "color": {
+    "bg":"#121212","surface":"#1C1C1C","elevated":"#222222",
+    "textPrimary":"#FFFFFF","textSecondary":"#C9C9C9",
+    "brandGold":"#FFC533","brandBlue":"#2A6BE1","brandMagenta":"#D93CE6",
+    "accent":"#FFC533","success":"#22C55E","warning":"#F59E0B","error":"#EF4444"
+  },
+  "radius":{"sm":8,"md":12,"lg":16,"xl":24},
+  "space":{"xs":4,"sm":8,"md":12,"lg":16,"xl":24,"xxl":32},
+  "shadow":{"card":"0 6px 16px rgba(0,0,0,0.35)"}
+}
