@@ -1,60 +1,39 @@
-import { Search, Settings, User } from "lucide-react";
+// src/components/header/CompleteSetupPill.tsx
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CompleteSetupPill } from "@/components/header/CompleteSetupPill";
+import { Settings } from "lucide-react";
+import { getStorageItem } from "@/lib/prefs";
 
-export function Header() {
+/**
+ * Small pill shown in the header until onboarding is completed.
+ * Clicking it dispatches a window event that the page listens to
+ * to open the onboarding overlay.
+ */
+export function CompleteSetupPill() {
+  const [showPill, setShowPill] = useState(false);
+
+  useEffect(() => {
+    // Show only when onboarding prefs are missing
+    const prefs = getStorageItem("yliv.pref");
+    setShowPill(!prefs);
+  }, []);
+
+  if (!showPill) return null;
+
+  const openOverlay = () => {
+    window.dispatchEvent(new CustomEvent("yliv:openOverlay"));
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        {/* Logo/Brand */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="text-2xl font-bold">
-              <span className="text-foreground">sony</span>
-              <span className="text-primary">liv</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-          <a href="#" className="text-foreground/60 hover:text-foreground transition-colors">
-            Home
-          </a>
-          <a href="#" className="text-foreground/60 hover:text-foreground transition-colors">
-            Movies
-          </a>
-          <a href="#" className="text-foreground/60 hover:text-foreground transition-colors">
-            TV Shows
-          </a>
-          <a href="#" className="text-foreground/60 hover:text-foreground transition-colors">
-            Originals
-          </a>
-          <a href="#" className="text-foreground/60 hover:text-foreground transition-colors">
-            Sports
-          </a>
-        </nav>
-
-        {/* Actions */}
-        <div className="flex items-center space-x-2">
-          <CompleteSetupPill />
-          
-          <Button variant="ghost" size="icon">
-            <Search className="h-4 w-4" />
-            <span className="sr-only">Search</span>
-          </Button>
-          
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
-            <span className="sr-only">Preferences</span>
-          </Button>
-
-          <Button variant="ghost" size="icon">
-            <User className="h-4 w-4" />
-            <span className="sr-only">Profile</span>
-          </Button>
-        </div>
-      </div>
-    </header>
+    <Button
+      id="yliv-complete-setup-pill"
+      variant="outline"
+      size="sm"
+      onClick={openOverlay}
+      className="text-xs font-medium border-primary/50 text-primary hover:bg-primary/10"
+    >
+      <Settings className="h-3 w-3 mr-1" />
+      Complete setup
+    </Button>
   );
 }
