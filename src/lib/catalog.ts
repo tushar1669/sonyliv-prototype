@@ -1,122 +1,160 @@
 /**
- * Catalog management utilities (public JSON + Telugu helpers)
+ * Catalog management utilities (robust path fallback)
  */
 
 export interface CatalogItem {
   id: string;
   title: string;
-  language: string;           // e.g., "Telugu", "Hindi"
-  category: string;           // e.g., "Movies", "Originals", "TV Shows"
-  genres: string[];
+  language: string;             // e.g., "Telugu"
+  category: string;             // e.g., "Movies" | "Originals"
+  genres: string[];             // e.g., ["Action","Drama"]
   actors: string[];
   director: string;
-  tags: string[];             // e.g., ["Trending", "New"]
-  expiresAt: string;          // ISO date string
-  posterUrl?: string;         // vertical image
-  landscapeUrl?: string;      // horizontal image
+  tags: string[];
+  expiresAt: string;            // ISO date string
+  posterUrl?: string;           // portrait card
+  landscapeUrl?: string;        // landscape card
 }
 
 let catalogCache: CatalogItem[] | null = null;
 
 /**
- * Load catalog from /public/mocks/mockCatalog.json (works in dev/preview)
+ * Try a list of paths until one succeeds (supports accidental public/public/)
  */
-export async function loadCatalog(): Promise<CatalogItem[]> {
-  if (catalogCache) return catalogCache;
-
-  try {
-    const res = await fetch("/mocks/mockCatalog.json");
-    if (!res.ok) throw new Error(`Failed to load catalog: ${res.statusText}`);
-    const data = (await res.json()) as CatalogItem[];
-    catalogCache = Array.isArray(data) ? data : [];
-    return catalogCache;
-  } catch (err) {
-    console.warn("Failed to load catalog:", err);
-    return [];
+async function tryPaths<T = unknown>(paths: string[]): Promise<T | null> {
+  for (const p of paths) {
+    try {
+      const res = await fetch(p, { cache: "no-store" });
+      if (res.ok) {
+        return (await res.json()) as T;
+      }
+      // If 404, keep trying next path
+      if (res.status !== 404) {
+        console.warn(`[catalog] "${p}" returned ${res.status}. Trying next path…`);
+      }
+    } catch (e) {
+      console.warn(`[catalog] Failed to fetch "${p}":`, e);
+    }
   }
-}
-
-function isTelugu(item: CatalogItem) {
-  return item.language?.toLowerCase() === "telugu";
+  return null;
 }
 
 /**
- * New in Telugu (recent first by expiresAt — mock recency)
+ * Normalize raw records into CatalogItem (tolerates partial fields)
  */
-export function getLatestTelugu(
-  items: CatalogItem[],
-  limit: number = 12
-): CatalogItem[] {
-  return items
-    .filter(isTelugu)
-    .sort(
-      (a, b) =>
-        new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime()
-    )
-    .slice(0, limit);
-}
-
-/**
- * Trending in Telugu (tagged “trending” first, then recent fallback)
- */
-export function getTrendingTelugu(
-  items: CatalogItem[],
-  limit: number = 12
-): CatalogItem[] {
-  const telugu = items.filter(isTelugu);
-  const tagged = telugu.filter((i) =>
-    (i.tags || []).some((t) => /trending|hot|popular/i.test(t))
-  );
-  const rest = telugu
-    .filter((i) => !tagged.includes(i))
-    .sort(
-      (a, b) =>
-        new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime()
-    );
-
-  return [...tagged, ...rest].slice(0, limit);
-}
-
-/**
- * Unique Telugu genres (for chips/filters)
- */
-export function getTeluguGenres(items: CatalogItem[]): string[] {
-  const set = new Set<string>();
-  items.filter(isTelugu).forEach((i) => i.genres?.forEach((g) => set.add(g)));
-  return Array.from(set).sort();
-}
-
-/**
- * Generic text search
- */
-export function searchCatalog(items: CatalogItem[], query: string): CatalogItem[] {
-  if (!query.trim()) return items;
-  const q = query.toLowerCase().trim();
-
-  return items.filter((item) => {
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.director.toLowerCase().includes(q) ||
-      item.actors.some((a) => a.toLowerCase().includes(q)) ||
-      item.tags.some((t) => t.toLowerCase().includes(q)) ||
-      item.genres.some((g) => g.toLowerCase().includes(q))
-    );
+function normalize(items: any[]): CatalogItem[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((it, i) => {
+    const id = String(it.id ?? i);
+    return {
+      id,
+      title: String(it.title ?? "Untitled"),
+      language: String(it.language ?? "Telugu"),
+      category: String(it.category ?? "Movies"),
+      genres: Array.isArray(it.genres) ? it.genres.map(String) : [],
+      actors: Array.isArray(it.actors) ? it.actors.map(String) : [],
+      director: String(it.director ?? ""),
+      tags: Array.isArray(it.tags) ? it.tags.map(String) : [],
+      expiresAt: String(it.expiresAt ?? new Date(Date.now() + 30 * 864e5).toISOString()),
+      posterUrl: it.posterUrl ?? "/placeholder.svg",
+      landscapeUrl: it.landscapeUrl ?? it.posterUrl ?? "/placeholder.svg",
+    };
   });
 }
 
 /**
- * Expiring soon (within N days)
+ * Load catalog data with caching.
+ * Tries, in order:
+ *  1) /mocks/mockCatalog.json                      (recommended)
+ *  2) /public/mocks/mockCatalog.json               (handles public/public/ case)
+ *  3) /src/mocks/mockCatalog.json                  (older local paths)
  */
-export function getExpiringSoon(items: CatalogItem[], days = 7): CatalogItem[] {
-  const now = new Date();
-  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+export async function loadCatalog(): Promise<CatalogItem[]> {
+  if (catalogCache) return catalogCache;
 
-  return items
-    .filter((i) => {
-      const d = new Date(i.expiresAt);
-      return d >= now && d <= future;
-    })
-    .sort(
-      (a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
+  const candidatePaths = [
+    "/mocks/mockCatalog.json",
+    "/public/mocks/mockCatalog.json",
+    "/src/mocks/mockCatalog.json",
+  ];
+
+  const raw = await tryPaths<any[]>(candidatePaths);
+  if (!raw) {
+    console.warn(
+      "[catalog] Could not find mockCatalog.json at any known path. " +
+      "Ensure it exists at public/mocks/mockCatalog.json (or public/public/mocks/mockCatalog.json)."
     );
+    catalogCache = [];
+    return catalogCache;
+  }
+
+  catalogCache = normalize(raw);
+  return catalogCache;
+}
+
+/** Filter catalog items by language */
+export function filterByLanguage(items: CatalogItem[], language: string): CatalogItem[] {
+  if (!language || language.toLowerCase() === "all") return items;
+  return items.filter((it) => it.language?.toLowerCase() === language.toLowerCase());
+}
+
+/** Filter catalog items by genres */
+export function filterByGenres(items: CatalogItem[], genres: string[]): CatalogItem[] {
+  if (!genres?.length) return items;
+  const want = genres.map((g) => g.toLowerCase());
+  return items.filter((it) =>
+    it.genres?.some((g: string) => want.some((w) => g.toLowerCase().includes(w)))
+  );
+}
+
+/** Mock trending: prioritize Originals/Movies + newer expiry */
+export function trending(items: CatalogItem[], language?: string, limit = 10): CatalogItem[] {
+  const filtered = language ? filterByLanguage(items, language) : items;
+  const buckets = new Set(["Originals", "Movies"]);
+  return [...filtered]
+    .sort((a, b) => {
+      const aScore = buckets.has(a.category) ? 2 : 1;
+      const bScore = buckets.has(b.category) ? 2 : 1;
+      if (aScore !== bScore) return bScore - aScore;
+      return new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime();
+    })
+    .slice(0, limit);
+}
+
+/** Search by title / people / tags / genres */
+export function searchCatalog(items: CatalogItem[], query: string): CatalogItem[] {
+  const q = query?.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((it) => {
+    return (
+      it.title?.toLowerCase().includes(q) ||
+      it.director?.toLowerCase().includes(q) ||
+      it.actors?.some((a) => a.toLowerCase().includes(q)) ||
+      it.tags?.some((t) => t.toLowerCase().includes(q)) ||
+      it.genres?.some((g) => g.toLowerCase().includes(q))
+    );
+  });
+}
+
+/** Items expiring within N days (ascending by soonest) */
+export function getExpiringSoon(items: CatalogItem[], days = 7): CatalogItem[] {
+  const now = Date.now();
+  const cutoff = now + days * 864e5;
+  return items
+    .filter((it) => {
+      const t = new Date(it.expiresAt).getTime();
+      return t >= now && t <= cutoff;
+    })
+    .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
+}
+
+/** Helpers for homepage rails */
+export function getLatestTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
+  return [...filterByLanguage(items, "Telugu")]
+    .sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime())
+    .slice(0, limit);
+}
+
+export function getTrendingTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
+  return trending(items, "Telugu", limit);
 }
