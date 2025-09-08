@@ -50,14 +50,31 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
     );
   };
 
-  const next = () => setStep(prev => Math.min(3, prev + 1));
-  const back = () => setStep(prev => Math.max(1, prev - 1));
+  const next = () => {
+    setStep(prev => {
+      const newStep = Math.min(3, prev + 1);
+      console.log('onboarding_step_changed', { from: prev, to: newStep });
+      return newStep;
+    });
+  };
+  
+  const back = () => {
+    setStep(prev => {
+      const newStep = Math.max(1, prev - 1);
+      console.log('onboarding_step_changed', { from: prev, to: newStep });
+      return newStep;
+    });
+  };
 
   const finish = () => {
     const prefs: YPref = { language, genres };
     
     // Save to localStorage
     writeYPref(prefs);
+    
+    // Analytics
+    console.log('onboarding_preferences_saved', prefs);
+    console.log('yliv_pref_changed', prefs);
     
     // Dispatch events
     window.dispatchEvent(new CustomEvent('yliv:preferences:updated', { 
@@ -125,6 +142,8 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border hover:bg-secondary'
                       }`}
+                      aria-label={`Select ${lang} as preferred language`}
+                      aria-pressed={language === lang}
                     >
                       <div className="font-medium">{lang}</div>
                       <div className="text-sm text-muted-foreground mt-1">
@@ -158,6 +177,8 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border hover:bg-secondary'
                       }`}
+                      aria-label={`${genres.includes(genre) ? 'Remove' : 'Add'} ${genre} genre`}
+                      aria-pressed={genres.includes(genre)}
                     >
                       <div className="font-medium capitalize">{genre}</div>
                     </button>
@@ -200,6 +221,7 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
               onClick={back}
               disabled={step === 1}
               className="flex items-center gap-2"
+              aria-label="Go back to previous step"
             >
               <ChevronLeft className="h-4 w-4" />
               Back
@@ -210,12 +232,13 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
                 onClick={next} 
                 disabled={step === 2 && genres.length < 3}
                 className="flex items-center gap-2"
+                aria-label={step === 2 && genres.length < 3 ? 'Select at least 3 genres to continue' : 'Continue to next step'}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button onClick={finish} className="flex items-center gap-2">
+              <Button onClick={finish} className="flex items-center gap-2" aria-label="Save preferences and complete setup">
                 Save & Continue
                 <ChevronRight className="h-4 w-4" />
               </Button>

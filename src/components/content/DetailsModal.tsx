@@ -43,7 +43,7 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
           <button
             onClick={onClose}
             className="absolute right-0 top-0 p-2 hover:bg-secondary rounded-md transition-colors"
-            aria-label="Close details"
+            aria-label="Close content details dialog"
           >
             <X className="h-4 w-4" />
           </button>
@@ -126,7 +126,7 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3 pt-4 border-t">
-            <Button onClick={handlePlayClick} className="flex items-center gap-2">
+            <Button onClick={handlePlayClick} className="flex items-center gap-2" aria-label={`Play ${item.title}`}>
               <Play className="h-4 w-4" />
               Play
             </Button>
@@ -134,6 +134,7 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
               variant="outline" 
               onClick={handleWatchlistClick}
               className="flex items-center gap-2"
+              aria-label={`Add ${item.title} to watchlist`}
             >
               <Plus className="h-4 w-4" />
               Add to Watchlist
@@ -143,6 +144,7 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
               onClick={handleDownloadClick}
               disabled
               className="flex items-center gap-2"
+              aria-label={`Download ${item.title} (currently unavailable)`}
             >
               <Download className="h-4 w-4" />
               Download

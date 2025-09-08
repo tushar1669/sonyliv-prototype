@@ -36,6 +36,7 @@ export default function Index() {
   useEffect(() => {
     const handleOpenOverlay = () => setOverlayOpen(true);
     const handlePrefsUpdated = (event: CustomEvent<YPref>) => {
+      console.log('yliv_pref_changed', event.detail);
       setUserPrefs(event.detail);
     };
     

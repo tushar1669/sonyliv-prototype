@@ -36,6 +36,15 @@ export const ContentRail: React.FC<ContentRailProps> = ({
   loading = false,
   onItemClick,
 }) => {
+  // Analytics when rail renders with content
+  React.useEffect(() => {
+    if (!loading && items.length > 0) {
+      console.log('rail_rendered', { 
+        railName: title, 
+        itemIds: items.map(item => item.id) 
+      });
+    }
+  }, [loading, items, title]);
 
   return (
     <section className="mb-8">
@@ -61,7 +70,10 @@ export const ContentRail: React.FC<ContentRailProps> = ({
               <ContentCard 
                 item={item} 
                 variant={variant} 
-                onClick={() => onItemClick?.(item)}
+                onClick={() => {
+                  console.log('card_clicked', { id: item.id, title: item.title });
+                  onItemClick?.(item);
+                }}
               />
             </div>
           ))
