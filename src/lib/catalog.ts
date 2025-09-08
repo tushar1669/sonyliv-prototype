@@ -181,3 +181,18 @@ export function daysUntilExpiry(item: CatalogItem): number {
   const diffMs = expiryTime - now;
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
+
+/** Get expiring soon items by language */
+export function getExpiringSoonByLanguage(items: CatalogItem[], language: string, days = 7, limit = 12): CatalogItem[] {
+  const languageFiltered = filterByLanguage(items, language);
+  const now = Date.now();
+  const cutoff = now + days * 864e5;
+  
+  return languageFiltered
+    .filter((item) => {
+      const expiryTime = new Date(item.expiresAt).getTime();
+      return expiryTime >= now && expiryTime <= cutoff;
+    })
+    .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())
+    .slice(0, limit);
+}

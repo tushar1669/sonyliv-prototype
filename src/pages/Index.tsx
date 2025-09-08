@@ -3,7 +3,10 @@ import { Header } from "@/components/Header";
 import { OnboardingOverlay } from "@/components/onboarding/Overlay";
 import { ContentRail } from "@/components/content/ContentRail";
 import { DetailsModal } from "@/components/content/DetailsModal";
-import { loadCatalog, getLatestByLanguage, getTrendingByLanguage } from "@/lib/catalog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { X, AlertTriangle } from "lucide-react";
+import { loadCatalog, getLatestByLanguage, getTrendingByLanguage, getExpiringSoonByLanguage, daysUntilExpiry } from "@/lib/catalog";
 import type { CatalogItem } from "@/lib/catalog";
 import { useIsDesktop } from "@/lib/viewport";
 import { readYPref, type YPref } from "@/lib/prefs";
@@ -23,6 +26,7 @@ export default function Index() {
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [watchlistItems, setWatchlistItems] = useState<CatalogItem[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -92,6 +96,27 @@ export default function Index() {
   const language = userPrefs?.language || 'Telugu';
   const latestContent = getLatestByLanguage(catalog, language, 10);
   const trendingContent = getTrendingByLanguage(catalog, language, 10);
+  const leavingSoonContent = getExpiringSoonByLanguage(catalog, language, 7, 12);
+  
+  // Check for expiring watchlist items (≤3 days)
+  const expiringWatchlistItems = watchlistItems.filter(item => {
+    const days = daysUntilExpiry(item);
+    return days <= 3 && days > 0;
+  });
+  
+  const shouldShowBanner = !bannerDismissed && expiringWatchlistItems.length > 0;
+
+  const handleBannerDismiss = () => {
+    setBannerDismissed(true);
+  };
+
+  const handleViewLeavingSoon = () => {
+    const leavingSoonSection = document.getElementById('yliv-leaving-soon');
+    if (leavingSoonSection) {
+      leavingSoonSection.scrollIntoView({ behavior: 'smooth' });
+    }
+    setBannerDismissed(true);
+  };
 
   // IMPORTANT: bg-transparent so the global body background shows through
   return (
@@ -110,6 +135,39 @@ export default function Index() {
 
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">
+        {/* Expiring Watchlist Banner */}
+        {shouldShowBanner && (
+          <Alert className="mb-6 border-destructive/50 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex-1">
+                <AlertTitle className="text-destructive">Items Leaving Soon</AlertTitle>
+                <AlertDescription className="text-destructive/80">
+                  Some items in your Watchlist are leaving soon.
+                </AlertDescription>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleViewLeavingSoon}
+                  className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                >
+                  View
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleBannerDismiss}
+                  className="h-8 w-8 text-destructive/60 hover:text-destructive"
+                  aria-label="Dismiss banner"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        )}
         {/* Hero */}
         <div className="text-center space-y-6">
           <h1 className="text-4xl font-bold text-foreground">
@@ -142,7 +200,20 @@ export default function Index() {
           {/* Watchlist Rail */}
           {watchlistItems.length > 0 && (
             <div id="yliv-watchlist">
+          {/* Leaving Soon Rail */}
+          {leavingSoonContent.length > 0 && (
+            <div id="yliv-leaving-soon">
               <ContentRail
+                title="Leaving Soon"
+                items={leavingSoonContent}
+                variant="poster"
+                loading={catalogLoading}
+                onItemClick={handleItemClick}
+              />
+            </div>
+          )}
+          
+          <ContentRail
                 title="Your Watchlist"
                 items={watchlistItems}
                 variant="poster"
