@@ -99,3 +99,55 @@ export function searchCatalog(items: CatalogItem[], query: string): CatalogItem[
     return (
       it.title.toLowerCase().includes(q) ||
       it.actors?.some((a) => a.toLowerCase().includes(q)) ||
+      (it.director || "").toLowerCase().includes(q) ||
+      it.tags?.some((t) => t.toLowerCase().includes(q)) ||
+      it.genres?.some((g) => g.toLowerCase().includes(q))
+    );
+  });
+}
+
+/**
+ * Very light "trending" heuristic for mocks:
+ * - Originals above others
+ * - Newer release dates first
+ */
+export function trending(items: CatalogItem[], limit = 10): CatalogItem[] {
+  return [...items]
+    .sort((a, b) => {
+      const as = a.category === "Originals" ? 2 : 1;
+      const bs = b.category === "Originals" ? 2 : 1;
+      if (as !== bs) return bs - as;
+
+      const ar = toTime(a.releaseDate);
+      const br = toTime(b.releaseDate);
+      return br - ar;
+    })
+    .slice(0, limit);
+}
+
+export function getExpiringSoon(items: CatalogItem[], days = 7): CatalogItem[] {
+  const now = Date.now();
+  const end = now + days * 24 * 60 * 60 * 1000;
+
+  return items
+    .filter((it) => {
+      const t = toTime(it.expiresAt);
+      return t && t >= now && t <= end;
+    })
+    .sort((a, b) => toTime(a.expiresAt) - toTime(b.expiresAt));
+}
+
+// ---------- Telugu-first helpers used by Home ----------
+
+export async function getLatestTelugu(limit = 12): Promise<CatalogItem[]> {
+  const all = await loadCatalog();
+  const telugu = filterByLanguage(all, "Telugu");
+  return [...telugu]
+    .sort((a, b) => toTime(b.releaseDate) - toTime(a.releaseDate))
+    .slice(0, limit);
+}
+
+export async function getTrendingTelugu(limit = 12): Promise<CatalogItem[]> {
+  const all = await loadCatalog();
+  return trending(filterByLanguage(all, "Telugu"), limit);
+}
