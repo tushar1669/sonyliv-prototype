@@ -17,9 +17,10 @@ interface DetailsModalProps {
   open: boolean;
   onClose: () => void;
   item: CatalogItem | null;
+  onPlay?: (item: CatalogItem) => void;
 }
 
-export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
+export function DetailsModal({ open, onClose, item, onPlay }: DetailsModalProps) {
   const [inWatchlist, setInWatchlist] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,9 @@ export function DetailsModal({ open, onClose, item }: DetailsModalProps) {
 
   const handlePlayClick = () => {
     console.log('detail_play_clicked', { itemId: item.id, title: item.title });
+    if (onPlay) {
+      onPlay(item);
+    }
   };
 
   const handleWatchlistClick = () => {

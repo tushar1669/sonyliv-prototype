@@ -3,18 +3,23 @@ import { Header } from "@/components/Header";
 import { OnboardingOverlay } from "@/components/onboarding/Overlay";
 import { ContentRail } from "@/components/content/ContentRail";
 import { DetailsModal } from "@/components/content/DetailsModal";
+import { MockPlayer } from "@/components/player/MockPlayer";
+import { DeepDiveSheet } from "@/components/content/DeepDiveSheet";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { X, AlertTriangle } from "lucide-react";
-import { loadCatalog, getLatestByLanguage, getTrendingByLanguage, getExpiringSoonByLanguage, daysUntilExpiry } from "@/lib/catalog";
+import { loadCatalog, getLatestByLanguage, getTrendingByLanguage, getExpiringSoonByLanguage, byGenreAndLanguage, daysUntilExpiry } from "@/lib/catalog";
 import type { CatalogItem } from "@/lib/catalog";
 import { useIsDesktop } from "@/lib/viewport";
 import { readYPref, type YPref } from "@/lib/prefs";
 import { getWatchlist } from "@/lib/watchlist";
+import { getContinueWatchingIds } from "@/lib/progress";
 
 declare global {
   interface WindowEventMap {
     "yliv:openOverlay": CustomEvent<void>;
+    "yliv:content:finished": CustomEvent<CatalogItem>;
+    "yliv:deep-dive:play": CustomEvent<{ item: CatalogItem; source: string }>;
   }
 }
 
@@ -27,6 +32,11 @@ export default function Index() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [watchlistItems, setWatchlistItems] = useState<CatalogItem[]>([]);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [playerItem, setPlayerItem] = useState<CatalogItem | null>(null);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [deepDiveItem, setDeepDiveItem] = useState<CatalogItem | null>(null);
+  const [continueItems, setContinueItems] = useState<CatalogItem[]>([]);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -48,6 +58,18 @@ export default function Index() {
     const handleWatchlistChanged = () => {
       updateWatchlistItems();
     };
+    const handleProgressChanged = () => {
+      updateContinueItems();
+    };
+    const handleContentFinished = (event: CustomEvent<CatalogItem>) => {
+      setDeepDiveItem(event.detail);
+      setDeepDiveOpen(true);
+      updateContinueItems(); // Remove completed item from continue watching
+    };
+    const handleDeepDivePlay = (event: CustomEvent<{ item: CatalogItem; source: string }>) => {
+      setPlayerItem(event.detail.item);
+      setPlayerOpen(true);
+    };
     
     const updateWatchlistItems = () => {
       if (catalog.length > 0) {
@@ -56,18 +78,37 @@ export default function Index() {
         setWatchlistItems(items);
       }
     };
+
+    const updateContinueItems = () => {
+      if (catalog.length > 0) {
+        const continueIds = getContinueWatchingIds(12);
+        const items = catalog.filter(item => continueIds.includes(item.id));
+        setContinueItems(items);
+        
+        if (items.length > 0) {
+          console.log('continue_rail_rendered', { itemIds: items.map(i => i.id) });
+        }
+      }
+    };
     
-    // Initial watchlist update
+    // Initial updates
     updateWatchlistItems();
+    updateContinueItems();
     
     window.addEventListener('yliv:openOverlay', handleOpenOverlay);
     window.addEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
     window.addEventListener('yliv:watchlist:changed', handleWatchlistChanged);
+    window.addEventListener('yliv:progress:changed', handleProgressChanged);
+    window.addEventListener('yliv:content:finished', handleContentFinished as EventListener);
+    window.addEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
     
     return () => {
       window.removeEventListener('yliv:openOverlay', handleOpenOverlay);
       window.removeEventListener('yliv:preferences:updated', handlePrefsUpdated as EventListener);
       window.removeEventListener('yliv:watchlist:changed', handleWatchlistChanged);
+      window.removeEventListener('yliv:progress:changed', handleProgressChanged);
+      window.removeEventListener('yliv:content:finished', handleContentFinished as EventListener);
+      window.removeEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
     };
   }, [catalog]);
 
@@ -87,6 +128,18 @@ export default function Index() {
     setDetailsModalOpen(true);
   };
 
+  const handleContinueItemClick = (item: CatalogItem) => {
+    console.log('continue_resume_clicked', { id: item.id, title: item.title });
+    setPlayerItem(item);
+    setPlayerOpen(true);
+  };
+
+  const handlePlayFromDetails = (item: CatalogItem) => {
+    setDetailsModalOpen(false);
+    setPlayerItem(item);
+    setPlayerOpen(true);
+  };
+
   const handleDetailsModalClose = () => {
     setDetailsModalOpen(false);
     setSelectedItem(null);
@@ -97,6 +150,14 @@ export default function Index() {
   const latestContent = getLatestByLanguage(catalog, language, 10);
   const trendingContent = getTrendingByLanguage(catalog, language, 10);
   const leavingSoonContent = getExpiringSoonByLanguage(catalog, language, 7, 12);
+  
+  // Genre-based recommendations from user preferences
+  const firstTwoGenres = userPrefs?.genres?.slice(0, 2) || [];
+  const genreRails = firstTwoGenres.map(genre => ({
+    genre,
+    title: `Because you like ${genre.charAt(0).toUpperCase() + genre.slice(1)}`,
+    items: byGenreAndLanguage(catalog, genre, language, 12)
+  }));
   
   // Check for expiring watchlist items (≤3 days)
   const expiringWatchlistItems = watchlistItems.filter(item => {
@@ -130,7 +191,23 @@ export default function Index() {
       <DetailsModal 
         open={detailsModalOpen} 
         onClose={handleDetailsModalClose} 
-        item={selectedItem} 
+        item={selectedItem}
+        onPlay={handlePlayFromDetails}
+      />
+
+      {/* Mock Player */}
+      <MockPlayer 
+        open={playerOpen} 
+        onClose={() => setPlayerOpen(false)} 
+        item={playerItem} 
+      />
+
+      {/* Deep Dive Sheet */}
+      <DeepDiveSheet 
+        open={deepDiveOpen} 
+        onClose={() => setDeepDiveOpen(false)} 
+        item={deepDiveItem} 
+        catalog={catalog} 
       />
 
       {/* Main Content Area */}
@@ -197,9 +274,30 @@ export default function Index() {
 
         {/* Content Rails */}
         <div className="mt-12 space-y-8">
+          {/* Continue Watching Rail */}
+          {continueItems.length > 0 && (
+            <ContentRail
+              title="Continue Watching"
+              items={continueItems}
+              variant="poster"
+              loading={false}
+              onItemClick={handleContinueItemClick}
+            />
+          )}
+          
           {/* Watchlist Rail */}
           {watchlistItems.length > 0 && (
             <div id="yliv-watchlist">
+              <ContentRail
+                title="Your Watchlist"
+                items={watchlistItems}
+                variant="poster"
+                loading={false}
+                onItemClick={handleItemClick}
+              />
+            </div>
+          )}
+          
           {/* Leaving Soon Rail */}
           {leavingSoonContent.length > 0 && (
             <div id="yliv-leaving-soon">
@@ -208,16 +306,6 @@ export default function Index() {
                 items={leavingSoonContent}
                 variant="poster"
                 loading={catalogLoading}
-                onItemClick={handleItemClick}
-              />
-            </div>
-          )}
-          
-          <ContentRail
-                title="Your Watchlist"
-                items={watchlistItems}
-                variant="poster"
-                loading={false}
                 onItemClick={handleItemClick}
               />
             </div>
@@ -237,6 +325,20 @@ export default function Index() {
             loading={catalogLoading}
             onItemClick={handleItemClick}
           />
+          
+          {/* Genre-based Rails */}
+          {genreRails.map(rail => (
+            rail.items.length > 0 && (
+              <ContentRail
+                key={rail.genre}
+                title={rail.title}
+                items={rail.items}
+                variant="poster"
+                loading={catalogLoading}
+                onItemClick={handleItemClick}
+              />
+            )
+          ))}
         </div>
       </main>
     </div>

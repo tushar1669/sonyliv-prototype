@@ -55,6 +55,18 @@ export const ContentRail: React.FC<ContentRailProps> = ({
           itemCount: items.length,
           itemIds: items.map(item => item.id) 
         });
+      } else if (title === "Continue Watching") {
+        console.log('continue_rail_rendered', { 
+          itemCount: items.length,
+          itemIds: items.map(item => item.id) 
+        });
+      } else if (title.startsWith("Because you like")) {
+        const genre = title.replace("Because you like ", "").toLowerCase();
+        console.log('genre_rail_rendered', { 
+          genre, 
+          itemCount: items.length,
+          itemIds: items.map(item => item.id) 
+        });
       }
     }
   }, [loading, items, title]);

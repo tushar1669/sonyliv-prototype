@@ -196,3 +196,52 @@ export function getExpiringSoonByLanguage(items: CatalogItem[], language: string
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())
     .slice(0, limit);
 }
+
+/** Filter by genre and language for recommendation rails */
+export function byGenreAndLanguage(items: CatalogItem[], genre: string, language: string, limit = 12): CatalogItem[] {
+  const genreFiltered = filterByGenres(items, [genre]);
+  return filterByLanguage(genreFiltered, language).slice(0, limit);
+}
+
+/** Get items by specific actor, optionally filtered by language */
+export function byActor(items: CatalogItem[], actor: string, language?: string, limit = 12): CatalogItem[] {
+  const filtered = items.filter(item => 
+    item.actors.some(a => a.toLowerCase() === actor.toLowerCase())
+  );
+  
+  const languageFiltered = language ? filterByLanguage(filtered, language) : filtered;
+  
+  return languageFiltered
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+/** Get items by specific director, optionally filtered by language */
+export function byDirector(items: CatalogItem[], director: string, language?: string, limit = 12): CatalogItem[] {
+  const filtered = items.filter(item => 
+    item.director.toLowerCase() === director.toLowerCase()
+  );
+  
+  const languageFiltered = language ? filterByLanguage(filtered, language) : filtered;
+  
+  return languageFiltered
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+/** Get related items by primary genre, excluding the seed item */
+export function relatedByPrimaryGenre(items: CatalogItem[], seed: CatalogItem, language?: string, limit = 12): CatalogItem[] {
+  if (!seed.genres || seed.genres.length === 0) return [];
+  
+  const primaryGenre = seed.genres[0];
+  const filtered = items.filter(item => 
+    item.id !== seed.id && 
+    item.genres.some(g => g.toLowerCase() === primaryGenre.toLowerCase())
+  );
+  
+  const languageFiltered = language ? filterByLanguage(filtered, language) : filtered;
+  
+  return languageFiltered
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
