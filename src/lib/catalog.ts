@@ -173,3 +173,11 @@ export function getLatestTelugu(items: CatalogItem[], limit = 10): CatalogItem[]
 export function getTrendingTelugu(items: CatalogItem[], limit = 10): CatalogItem[] {
   return getTrendingByLanguage(items, 'Telugu', limit);
 }
+
+/** Calculate days until expiry (rounded up) */
+export function daysUntilExpiry(item: CatalogItem): number {
+  const now = Date.now();
+  const expiryTime = new Date(item.expiresAt).getTime();
+  const diffMs = expiryTime - now;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { OnboardingOverlay } from "@/components/onboarding/Overlay";
 import { ContentRail } from "@/components/content/ContentRail";
+import { DetailsModal } from "@/components/content/DetailsModal";
 import { loadCatalog, getLatestByLanguage, getTrendingByLanguage } from "@/lib/catalog";
 import type { CatalogItem } from "@/lib/catalog";
 import { useIsDesktop } from "@/lib/viewport";
@@ -16,12 +17,18 @@ declare global {
 export default function Index() {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [userPrefs, setUserPrefs] = useState<YPref | null>(null);
+  const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
   useEffect(() => {
-    loadCatalog().then(setCatalog);
+    loadCatalog().then((data) => {
+      setCatalog(data);
+      setCatalogLoading(false);
+    });
     setUserPrefs(readYPref());
   }, []);
 
@@ -52,6 +59,16 @@ export default function Index() {
     setOverlayOpen(false);
   };
 
+  const handleItemClick = (item: CatalogItem) => {
+    setSelectedItem(item);
+    setDetailsModalOpen(true);
+  };
+
+  const handleDetailsModalClose = () => {
+    setDetailsModalOpen(false);
+    setSelectedItem(null);
+  };
+
   // Get content for rails based on user language preference
   const language = userPrefs?.language || 'Telugu';
   const latestContent = getLatestByLanguage(catalog, language, 10);
@@ -64,6 +81,13 @@ export default function Index() {
 
       {/* Onboarding Overlay (page-owned) */}
       <OnboardingOverlay open={overlayOpen} onClose={handleOverlayClose} />
+
+      {/* Details Modal */}
+      <DetailsModal 
+        open={detailsModalOpen} 
+        onClose={handleDetailsModalClose} 
+        item={selectedItem} 
+      />
 
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">
@@ -95,20 +119,22 @@ export default function Index() {
         </div>
 
         {/* Content Rails */}
-        {catalog.length > 0 && (
-          <div className="mt-12 space-y-8">
-            <ContentRail
-              title={`New in ${language}`}
-              items={latestContent}
-              variant="poster"
-            />
-            <ContentRail
-              title={`Trending in ${language}`}  
-              items={trendingContent}
-              variant="poster"
-            />
-          </div>
-        )}
+        <div className="mt-12 space-y-8">
+          <ContentRail
+            title={`New in ${language}`}
+            items={latestContent}
+            variant="poster"
+            loading={catalogLoading}
+            onItemClick={handleItemClick}
+          />
+          <ContentRail
+            title={`Trending in ${language}`}  
+            items={trendingContent}
+            variant="poster"
+            loading={catalogLoading}
+            onItemClick={handleItemClick}
+          />
+        </div>
       </main>
     </div>
   );

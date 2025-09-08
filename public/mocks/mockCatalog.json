@@ -60,7 +60,7 @@
     "actors": ["Ram Charan", "Samantha"],
     "director": "Sukumar",
     "tags": ["period", "village", "blockbuster"],
-    "expiresAt": "2025-01-30T00:00:00Z",
+    "expiresAt": "2025-01-15T00:00:00Z",
     "posterUrl": "https://picsum.photos/300/450?random=5",
     "landscapeUrl": "https://picsum.photos/500/300?random=5"
   },
@@ -112,7 +112,7 @@
     "actors": ["Prabhas", "Shraddha Kapoor"],
     "director": "Sujeeth",
     "tags": ["high-budget", "action"],
-    "expiresAt": "2025-02-10T00:00:00Z",
+    "expiresAt": "2025-01-12T00:00:00Z",
     "posterUrl": "https://picsum.photos/300/450?random=9",
     "landscapeUrl": "https://picsum.photos/500/300?random=9"
   },
