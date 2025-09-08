@@ -1,5 +1,10 @@
-import { useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
@@ -8,21 +13,21 @@ interface OnboardingOverlayProps {
   onClose: () => void;
 }
 
+/**
+ * Desktop onboarding overlay (shell).
+ * Radix handles focus-trap/ESC; we also lock body scroll while open.
+ */
 export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
-  // Handle ESC key and focus trap (handled by Radix Dialog)
   useEffect(() => {
     if (open) {
-      console.log('onboarding_overlay_opened');
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
+      console.log("onboarding_overlay_opened");
+      document.body.style.overflow = "hidden";
     } else {
-      console.log('onboarding_overlay_closed');
-      // Restore body scroll
-      document.body.style.overflow = '';
+      console.log("onboarding_overlay_closed");
+      document.body.style.overflow = "";
     }
-
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [open]);
 
@@ -32,15 +37,13 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent 
+      <DialogContent
         className="max-w-2xl w-full mx-4"
         aria-describedby="onboarding-description"
       >
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle id="onboarding-title">
-              Complete your setup
-            </DialogTitle>
+            <DialogTitle id="onboarding-title">Complete your setup</DialogTitle>
             <Button
               variant="ghost"
               size="icon"
@@ -57,17 +60,23 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
           <div className="text-center space-y-4">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">1</span>
+                <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+                  1
+                </span>
                 <span>Choose Language (default Telugu)</span>
               </div>
-              
+
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="bg-muted text-muted-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">2</span>
+                <span className="bg-muted text-muted-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+                  2
+                </span>
                 <span>Pick Genres</span>
               </div>
-              
+
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="bg-muted text-muted-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">3</span>
+                <span className="bg-muted text-muted-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+                  3
+                </span>
                 <span>Review & Confirm</span>
               </div>
             </div>
