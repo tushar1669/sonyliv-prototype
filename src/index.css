@@ -105,21 +105,20 @@
 
 /* === Global background image (applies site-wide) === */
 :root {
-  /* overlay + image url */
   --site-bg-overlay: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.85));
-  --site-bg-url: url('/sonyliv-bg.png'); /* image lives in /public */
+  --site-bg-url: url('/sonyliv-bg.png'); /* file is in /public */
 }
 
 html, body {
   min-height: 100%;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1; /* behind everything */
-  background: var(--site-bg-overlay), var(--site-bg-url) center top / cover no-repeat fixed;
-  filter: saturate(0.95) brightness(0.78); /* tweak for readability */
-  pointer-events: none;
+/* Put the image directly on the body so it isn't hidden by the body background */
+body {
+  background-image: var(--site-bg-overlay), var(--site-bg-url);
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  /* keep the color too (from Tailwind's bg-background) for repaint areas */
 }
