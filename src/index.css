@@ -1,47 +1,38 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* SonyLIV-inspired Design System - Dark theme with gold accents */
-
 @layer base {
   :root {
-    /* Dark theme colors inspired by SonyLIV */
-    --background: 210 17% 7%; /* #121212 equivalent */
-    --foreground: 0 0% 100%; /* White text */
-    --surface: 210 11% 11%; /* #1C1C1C equivalent */
-    --elevated: 210 8% 13%; /* #222222 equivalent */
-    
-    /* Brand colors from SonyLIV palette */
-    --brand-gold: 45 100% 60%; /* #FFC533 equivalent */
-    --brand-blue: 220 74% 54%; /* #2A6BE1 equivalent */
-    --brand-magenta: 298 81% 56%; /* #D93CE6 equivalent */
+    --background: 210 17% 7%;
+    --foreground: 0 0% 100%;
+    --surface: 210 11% 11%;
+    --elevated: 210 8% 13%;
+
+    --brand-gold: 45 100% 60%;
+    --brand-blue: 220 74% 54%;
+    --brand-magenta: 298 81% 56%;
 
     --card: 210 11% 11%;
     --card-foreground: 0 0% 100%;
-
     --popover: 210 8% 13%;
     --popover-foreground: 0 0% 100%;
 
     --primary: 45 100% 60%;
     --primary-foreground: 210 17% 7%;
-
     --secondary: 210 8% 13%;
     --secondary-foreground: 0 0% 79%;
-
     --muted: 210 11% 11%;
     --muted-foreground: 0 0% 79%;
-
     --accent: 45 100% 60%;
     --accent-foreground: 210 17% 7%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 210 8% 20%;
     --input: 210 8% 13%;
     --ring: 45 100% 60%;
-
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
@@ -54,10 +45,9 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* ======== GLOBAL BACKGROUND CONTROLS ======== */
-    /* Tweak these two numbers if it's too dark/too light */
-    --site-bg-top-alpha: 0.45;    /* 0.00 (no overlay) → 1.00 (fully black) */
-    --site-bg-bottom-alpha: 0.85; /* stronger at the bottom for readability */
-    --site-bg-image-url: url('/sonyliv-bg.png'); /* image lives in /public */
+    --site-bg-top-alpha: 0.45;     /* lower = lighter, higher = darker */
+    --site-bg-bottom-alpha: 0.85;  /* lower = lighter, higher = darker */
+    --site-bg-image-url: url('/sonyliv-bg.png'); /* file in /public */
   }
 
   .dark {
@@ -92,21 +82,14 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply text-foreground; } /* keep background transparent; set below */
 }
 
 /* ======== SITE-WIDE BACKGROUND IMAGE ======== */
-/* We apply the overlay + image on the body itself so it always shows */
 html, body { min-height: 100%; }
 
 body {
-  /* overlay first, then image */
   background:
     linear-gradient(
       180deg,
@@ -118,7 +101,5 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
   background-attachment: fixed;
-
-  /* keep a fallback color behind the image */
   background-color: hsl(var(--background));
 }
