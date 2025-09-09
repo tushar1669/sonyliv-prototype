@@ -16,11 +16,14 @@ import { getWatchlist } from "@/lib/watchlist";
 import { getContinueWatchingIds } from "@/lib/progress";
 import { ensureChallengeStarted, onContentFinished, onWatchlistChanged, type ChallengeState } from "@/lib/challenge";
 import { loadDownloads, attachTicker, queueDownload, startDownload, pauseDownload, resumeDownload, cancelDownload, clearCompleted, type DownloadsMap } from "@/lib/downloads";
+import { getReward, ensureRewardForChallenge, type Reward } from "@/lib/rewards";
 import { ChallengeBadge } from "@/components/challenge/ChallengeBadge";
 import { ChallengeDrawer } from "@/components/challenge/ChallengeDrawer";
 import { DownloadsBadge } from "@/components/downloads/DownloadsBadge";
 import { DownloadsDrawer } from "@/components/downloads/DownloadsDrawer";
 import { SmartDownloadsBanner } from "@/components/downloads/SmartDownloadsBanner";
+import { RewardsBadge } from "@/components/rewards/RewardsBadge";
+import { RewardsDrawer } from "@/components/rewards/RewardsDrawer";
 
 declare global {
   interface WindowEventMap {
@@ -52,6 +55,8 @@ export default function Index() {
   const [downloadsOpen, setDownloadsOpen] = useState(false);
   const [smartOpen, setSmartOpen] = useState(false);
   const [smartSuggestions, setSmartSuggestions] = useState<CatalogItem[]>([]);
+  const [reward, setReward] = useState<Reward | null>(null);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -63,6 +68,7 @@ export default function Index() {
     setUserPrefs(readYPref());
     setChallenge(ensureChallengeStarted());
     setDownloads(loadDownloads());
+    setReward(getReward());
     attachTicker(); // Start progress ticker once
   }, []);
 
@@ -80,6 +86,7 @@ export default function Index() {
         setChallenge(newChallenge);
         if (newChallenge.completedAt && !challenge.completedAt) {
           console.log('challenge_completed');
+          ensureRewardForChallenge(newChallenge);
           alert('Congratulations! You completed the Telugu Tour! Bonus week unlocked!');
         }
       }
@@ -97,6 +104,7 @@ export default function Index() {
         setChallenge(newChallenge);
         if (newChallenge.completedAt && !challenge.completedAt) {
           console.log('challenge_completed');
+          ensureRewardForChallenge(newChallenge);
           alert('Congratulations! You completed the Telugu Tour! Bonus week unlocked!');
         }
       }
@@ -108,6 +116,10 @@ export default function Index() {
 
     const handleDownloadsChange = (event: CustomEvent<{ map: DownloadsMap }>) => {
       setDownloads(event.detail.map);
+    };
+
+    const handleRewardsChange = (event: CustomEvent<{ reward: Reward }>) => {
+      setReward(event.detail.reward);
     };
     
     const updateWatchlistItems = () => {
@@ -141,6 +153,7 @@ export default function Index() {
     window.addEventListener('yliv:content:finished', handleContentFinished as EventListener);
     window.addEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
     window.addEventListener('yliv:downloads:changed', handleDownloadsChange as EventListener);
+    window.addEventListener('yliv:rewards:changed', handleRewardsChange as EventListener);
     
     return () => {
       window.removeEventListener('yliv:openOverlay', handleOpenOverlay);
@@ -150,6 +163,7 @@ export default function Index() {
       window.removeEventListener('yliv:content:finished', handleContentFinished as EventListener);
       window.removeEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
       window.removeEventListener('yliv:downloads:changed', handleDownloadsChange as EventListener);
+      window.removeEventListener('yliv:rewards:changed', handleRewardsChange as EventListener);
     };
   }, [catalog]);
 
@@ -331,6 +345,10 @@ export default function Index() {
           state={challenge} 
           onClick={() => setChallengeOpen(true)} 
         />
+        <RewardsBadge 
+          hasUnclaimed={reward && !reward.claimedAt} 
+          onClick={() => setRewardsOpen(true)} 
+        />
       </Header>
 
       {/* Onboarding Overlay (page-owned) */}
@@ -373,6 +391,13 @@ export default function Index() {
         onClose={() => setDownloadsOpen(false)} 
         map={downloads} 
         onAction={handleDownloadAction}
+      />
+
+      {/* Rewards Drawer */}
+      <RewardsDrawer 
+        open={rewardsOpen} 
+        onClose={() => setRewardsOpen(false)} 
+        reward={reward}
       />
 
       {/* Main Content Area */}
