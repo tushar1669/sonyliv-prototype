@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Play, Plus, Download, Calendar, Check } from "lucide-react";
+import { X, Play, Plus, Download, Calendar, Check, Pause } from "lucide-react";
 import type { CatalogItem } from "@/lib/catalog";
 import { daysUntilExpiry } from "@/lib/catalog";
 import { isInWatchlist, addToWatchlist, removeFromWatchlist } from "@/lib/watchlist";
+import { getEntry, queueDownload, startDownload, pauseDownload, resumeDownload } from "@/lib/downloads";
 
 interface DetailsModalProps {
   open: boolean;
@@ -22,23 +23,35 @@ interface DetailsModalProps {
 
 export function DetailsModal({ open, onClose, item, onPlay }: DetailsModalProps) {
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [downloadEntry, setDownloadEntry] = useState<any>(null);
 
   useEffect(() => {
     if (item) {
       setInWatchlist(isInWatchlist(item.id));
+      setDownloadEntry(getEntry(item.id));
     }
   }, [item]);
 
-  // Listen for watchlist changes to update button state
+  // Listen for watchlist and download changes to update button states
   useEffect(() => {
     const handleWatchlistChange = () => {
       if (item) {
         setInWatchlist(isInWatchlist(item.id));
       }
     };
+
+    const handleDownloadsChange = () => {
+      if (item) {
+        setDownloadEntry(getEntry(item.id));
+      }
+    };
     
     window.addEventListener('yliv:watchlist:changed', handleWatchlistChange);
-    return () => window.removeEventListener('yliv:watchlist:changed', handleWatchlistChange);
+    window.addEventListener('yliv:downloads:changed', handleDownloadsChange);
+    return () => {
+      window.removeEventListener('yliv:watchlist:changed', handleWatchlistChange);
+      window.removeEventListener('yliv:downloads:changed', handleDownloadsChange);
+    };
   }, [item]);
 
   if (!item) return null;
@@ -61,7 +74,22 @@ export function DetailsModal({ open, onClose, item, onPlay }: DetailsModalProps)
   };
 
   const handleDownloadClick = () => {
-    console.log('detail_download_clicked', { itemId: item.id, title: item.title });
+    if (!item) return;
+    
+    if (!downloadEntry) {
+      // Queue and start download
+      queueDownload(item);
+      startDownload(item.id);
+      console.log('dl_from_details_clicked', { id: item.id, action: 'download' });
+    } else if (downloadEntry.status === 'downloading' || downloadEntry.status === 'queued') {
+      // Pause download
+      pauseDownload(item.id);
+      console.log('dl_from_details_clicked', { id: item.id, action: 'pause' });
+    } else if (downloadEntry.status === 'paused') {
+      // Resume download
+      resumeDownload(item.id);
+      console.log('dl_from_details_clicked', { id: item.id, action: 'resume' });
+    }
   };
 
   const expiryDays = daysUntilExpiry(item);
@@ -173,12 +201,39 @@ export function DetailsModal({ open, onClose, item, onPlay }: DetailsModalProps)
             <Button 
               variant="outline" 
               onClick={handleDownloadClick}
-              disabled
               className="flex items-center gap-2"
-              aria-label={`Download ${item.title} (currently unavailable)`}
+              aria-label={
+                !downloadEntry 
+                  ? `Download ${item.title}` 
+                  : downloadEntry.status === 'completed' 
+                  ? `${item.title} downloaded` 
+                  : downloadEntry.status === 'downloading' || downloadEntry.status === 'queued'
+                  ? `Pause download of ${item.title}`
+                  : `Resume download of ${item.title}`
+              }
+              disabled={downloadEntry?.status === 'completed'}
             >
-              <Download className="h-4 w-4" />
-              Download
+              {!downloadEntry ? (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download
+                </>
+              ) : downloadEntry.status === 'completed' ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Downloaded
+                </>
+              ) : downloadEntry.status === 'downloading' || downloadEntry.status === 'queued' ? (
+                <>
+                  <Pause className="h-4 w-4" />
+                  Pause
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Resume
+                </>
+              )}
             </Button>
           </div>
         </div>

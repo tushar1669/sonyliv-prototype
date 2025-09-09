@@ -15,8 +15,12 @@ import { readYPref, type YPref } from "@/lib/prefs";
 import { getWatchlist } from "@/lib/watchlist";
 import { getContinueWatchingIds } from "@/lib/progress";
 import { ensureChallengeStarted, onContentFinished, onWatchlistChanged, type ChallengeState } from "@/lib/challenge";
+import { loadDownloads, attachTicker, queueDownload, startDownload, pauseDownload, resumeDownload, cancelDownload, clearCompleted, type DownloadsMap } from "@/lib/downloads";
 import { ChallengeBadge } from "@/components/challenge/ChallengeBadge";
 import { ChallengeDrawer } from "@/components/challenge/ChallengeDrawer";
+import { DownloadsBadge } from "@/components/downloads/DownloadsBadge";
+import { DownloadsDrawer } from "@/components/downloads/DownloadsDrawer";
+import { SmartDownloadsBanner } from "@/components/downloads/SmartDownloadsBanner";
 
 declare global {
   interface WindowEventMap {
@@ -44,6 +48,10 @@ export default function Index() {
   const [challenge, setChallenge] = useState<ChallengeState | null>(null);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeBannerDismissed, setChallengeBannerDismissed] = useState(false);
+  const [downloads, setDownloads] = useState<DownloadsMap>({});
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
+  const [smartOpen, setSmartOpen] = useState(false);
+  const [smartSuggestions, setSmartSuggestions] = useState<CatalogItem[]>([]);
   const isDesktop = useIsDesktop();
   
   // Load catalog data and user preferences
@@ -54,6 +62,8 @@ export default function Index() {
     });
     setUserPrefs(readYPref());
     setChallenge(ensureChallengeStarted());
+    setDownloads(loadDownloads());
+    attachTicker(); // Start progress ticker once
   }, []);
 
   // Event listeners for overlay, preference updates, and watchlist changes
@@ -95,6 +105,10 @@ export default function Index() {
       setPlayerItem(event.detail.item);
       setPlayerOpen(true);
     };
+
+    const handleDownloadsChange = (event: CustomEvent<{ map: DownloadsMap }>) => {
+      setDownloads(event.detail.map);
+    };
     
     const updateWatchlistItems = () => {
       if (catalog.length > 0) {
@@ -126,6 +140,7 @@ export default function Index() {
     window.addEventListener('yliv:progress:changed', handleProgressChanged);
     window.addEventListener('yliv:content:finished', handleContentFinished as EventListener);
     window.addEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
+    window.addEventListener('yliv:downloads:changed', handleDownloadsChange as EventListener);
     
     return () => {
       window.removeEventListener('yliv:openOverlay', handleOpenOverlay);
@@ -134,8 +149,43 @@ export default function Index() {
       window.removeEventListener('yliv:progress:changed', handleProgressChanged);
       window.removeEventListener('yliv:content:finished', handleContentFinished as EventListener);
       window.removeEventListener('yliv:deep-dive:play', handleDeepDivePlay as EventListener);
+      window.removeEventListener('yliv:downloads:changed', handleDownloadsChange as EventListener);
     };
   }, [catalog]);
+
+  // Compute smart download suggestions and show banner when eligible
+  useEffect(() => {
+    if (catalog.length > 0 && userPrefs && isDesktop) {
+      const activeDownloads = Object.values(downloads).filter(d => d.status !== 'completed').length;
+      const completedDownloads = Object.values(downloads).filter(d => d.status === 'completed').length;
+      
+      // Show banner if: desktop, 0 completed downloads, <2 active downloads
+      if (completedDownloads === 0 && activeDownloads < 2) {
+        const language = userPrefs.language || 'Telugu';
+        let suggestions = getTrendingByLanguage(catalog, language, 12);
+        
+        // Prefer items matching user's genres if available
+        if (userPrefs.genres && userPrefs.genres.length > 0) {
+          const genreItems = catalog.filter(item => 
+            item.language === language &&
+            item.genres.some(g => userPrefs.genres!.map(ug => ug.toLowerCase()).includes(g.toLowerCase())) &&
+            !downloads[item.id] // Not already downloading/completed
+          );
+          if (genreItems.length > 0) {
+            suggestions = [...genreItems.slice(0, 6), ...suggestions.slice(0, 6)];
+          }
+        }
+        
+        // Filter out already downloading/completed items
+        suggestions = suggestions.filter(item => !downloads[item.id]).slice(0, 3);
+        
+        setSmartSuggestions(suggestions);
+        setSmartOpen(suggestions.length > 0);
+      } else {
+        setSmartOpen(false);
+      }
+    }
+  }, [catalog, userPrefs, downloads, isDesktop]);
 
   // Auto-open overlay on first desktop visit
   useEffect(() => {
@@ -237,10 +287,46 @@ export default function Index() {
     setChallengeBannerDismissed(true);
   };
 
+  const handleDownloadAction = (id: string, action: 'pause' | 'resume' | 'cancel' | 'clearCompleted') => {
+    if (action === 'clearCompleted') {
+      clearCompleted();
+    } else if (action === 'pause') {
+      pauseDownload(id);
+    } else if (action === 'resume') {
+      resumeDownload(id);
+    } else if (action === 'cancel') {
+      cancelDownload(id);
+    }
+  };
+
+  const handleSmartDownloadsAccept = () => {
+    smartSuggestions.forEach(item => {
+      queueDownload(item);
+      startDownload(item.id);
+    });
+    console.log('sd_auto_queued', { 
+      count: smartSuggestions.length,
+      itemIds: smartSuggestions.map(s => s.id)
+    });
+    setSmartOpen(false);
+    setDownloadsOpen(true); // Open downloads drawer to show progress
+  };
+
+  const handleSmartDownloadsDismiss = () => {
+    setSmartOpen(false);
+  };
+
+  // Calculate active download count for badge
+  const activeDownloadCount = Object.values(downloads).filter(d => d.status !== 'completed').length;
+
   // IMPORTANT: bg-transparent so the global body background shows through
   return (
     <div className="relative min-h-screen bg-transparent">
       <Header>
+        <DownloadsBadge 
+          count={activeDownloadCount} 
+          onClick={() => setDownloadsOpen(true)} 
+        />
         <ChallengeBadge 
           state={challenge} 
           onClick={() => setChallengeOpen(true)} 
@@ -281,8 +367,23 @@ export default function Index() {
         onStateChange={setChallenge}
       />
 
+      {/* Downloads Drawer */}
+      <DownloadsDrawer 
+        open={downloadsOpen} 
+        onClose={() => setDownloadsOpen(false)} 
+        map={downloads} 
+        onAction={handleDownloadAction}
+      />
+
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-8">
+        {/* Smart Downloads Banner */}
+        <SmartDownloadsBanner 
+          open={smartOpen} 
+          onAccept={handleSmartDownloadsAccept}
+          onDismiss={handleSmartDownloadsDismiss}
+          suggestions={smartSuggestions}
+        />
         {/* Challenge Banner */}
         {shouldShowChallengeBanner && (
           <Alert className="mb-6 border-primary/50 bg-primary/10">
